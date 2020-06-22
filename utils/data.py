@@ -1,6 +1,5 @@
 import logging
 
-from functools import partial
 from multiprocessing.pool import ThreadPool
 from typing import List
 
@@ -8,8 +7,6 @@ import investpy
 import pandas as pd
 import numpy as np
 import yfinance as yf
-
-from datetime import datetime
 
 logger = logging.getLogger('pt_logger.Stock')
 yf.pdr_override()
