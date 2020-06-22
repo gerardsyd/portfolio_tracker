@@ -1,0 +1,14 @@
+venv
+*.pyc
+__pycache__/
+.vscode/
+*.csv
+flask_session/
+portfolio-tracker.code-workspace
+*.log
+
+# Elastic Beanstalk Files
+.elasticbeanstalk/*
+!.elasticbeanstalk/*.cfg.yml
+!.elasticbeanstalk/*.global.yml
+.ebignore

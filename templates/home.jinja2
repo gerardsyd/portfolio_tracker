@@ -1,0 +1,63 @@
+{% extends 'base.jinja2' %}
+{% block content %}
+
+<head>
+<title>{{title}}</title>
+<style>
+.inputWrapper{
+    display:grid;
+    grid-template-columns: 25% 25%;
+    grid-column-gap:10px;
+    grid-row-gap:5px;
+    align-content:center;
+    padding:1em;
+}
+input[type=submit]{
+    width: 10em;  
+    height: 1.5em;
+}
+input[type=file]{
+    width: 22em;  
+    height: 1.5em;
+    padding-right:1em;
+}
+input[type=date]{
+    width: 10em;
+    height:1.5em;
+    padding-right:1em;
+}
+button{
+    width: 10em;
+    height:1.5em;
+}
+label{
+  font-weight:bold;
+}
+</style>
+</head>
+
+
+<h1>Portfolio Tracker</h1>
+    <div class='inputWrapper'>
+        <label> Portfolio actions:</label>
+        <label> Trade actions: </label>
+        <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
+            <input type="file" name="pf_file">
+            <input type="submit" value="Load Portfolio">
+        </form>
+        <a href="{{ url_for('add_trades') }}"><button>Add Trades</button></a>
+        <form action="/update" method="post">
+            <input type="date" name="up_date" id="up_date">
+            <input type="checkbox" id="hide_zero" name="hide_zero" value="True" checked> Hide zero balances?
+            <input type="submit" value="Update Prices">
+        </form>
+        <a href="{{ url_for('view_trades') }}"><button>Edit / View Trades</button></a>
+        <form action="/save" method="post"><input type="submit" value="Save Portfolio"></form>
+    </div>
+    <p>
+    <div><b>{{message}}</b></div>
+    <p>
+    <div>
+        {{tables}}
+    </div>
+{% endblock %}

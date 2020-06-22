@@ -1,0 +1,76 @@
+{% extends 'base.jinja2' %}
+{% block content %}
+<html>
+<head>
+<title>Portfolio Tracker: Add Trades</title>
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<style>
+.inputWrapper{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
+    grid-column-gap:10px;
+    grid-row-gap:5px;
+}
+input{
+    width: 10em;  height: 1.5em;
+}
+label{
+  font-weight:bold;
+}
+.input_section{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
+    grid-column-gap:10px;
+    grid-row-gap:5px;
+}
+.spacer{
+  height:10px;
+}
+</style>
+</head>
+
+<script>
+    $(document).ready(function(){
+        $('.outer').on('click', '.add_trade', function(){
+            var new_html = `
+            <input type='date' name='date' class='trade' required>
+            <input type='text' name='ticker' class='trade' required>
+            <input type='number' name='quantity' class='trade' min='1' step='.01' required>
+            <input type='number' name='price' class='trade' min='-1' step='.0001' required>
+            <input type='number' name='fees' class='trade' min='0.0' step='.01' required>
+            <select name="direction" class='trade' required>
+                <option value="Buy">Buy</option>
+                <option value="Sell">Sell</option>
+            </select>
+            <div class='spacer'></div>
+            `
+            $('.input_section').append(new_html);
+        });
+    });
+</script>
+
+<body>
+<h1>Portfolio Tracker</h1>
+<p><h2>Add Trades </h2>
+<div class="outer"> <!--Used to anchor jquery updates -->
+    <div class="inputWrapper">
+    <label>Date</label>
+    <label>Ticker</label>
+    <label>Quantity</label>
+    <label>Price</label>
+    <label>Fees</label>
+    <label>Direction</label>
+    </div>
+    <div class='spacer'></div>
+    <form method ="POST">
+        <div class="input_section"></div>
+            <div class='spacer'></div>
+            <button class="add_trade" type="button">Add trade</button>
+            <button class="submit_data" type="submit">Add all</button>
+            <a href="/"><button type="button">Cancel</button></a>
+        </div>
+    </form>
+</body>
+</html>
+
+{% endblock %}
