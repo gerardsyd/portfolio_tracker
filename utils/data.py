@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 
 from multiprocessing.pool import ThreadPool
@@ -49,7 +50,24 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
             dl_data['Stock Splits'] = 0
             dl_data['Dividends'] = 0
         except RuntimeError:
-            print(f'-------  No fund found for ISIN: {isin} -------')
+            # if not in investpy database, check if there is a custom funds module, import and execute custom fund function
+            try:
+                from utils.custom_funds import get_custom_fund_data
+                cust_dl_data = get_custom_fund_data(
+                    ticker, start_date, end_date)
+            except ImportError:
+                print('No custom funds module available')
+                cust_dl_data = None
+
+            # check if cust_dl_data is None or has data (is a DataFrame)
+            if isinstance(cust_dl_data, pd.DataFrame):
+                dl_data = cust_dl_data
+            else:
+                print(f'-------  No fund data found for ISIN: {isin} -------')
+                dl_data = pd.DataFrame()
+        except ValueError:
+            print(
+                f'-------  Dates are equal, no data downloaded for ISIN: {isin} -------')
             dl_data = pd.DataFrame()
     else:
         try:
@@ -62,6 +80,7 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
             dl_data = pd.DataFrame()
         except RuntimeError:
             print(f'-------  Yahoo! Finance is not working. Please try again -------')
+            dl_data = pd.DataFrame()
     return dl_data
 
 
@@ -78,7 +97,7 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List) -> pd.Data
         pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for each ticker from start_date to end_date
     """
     try:
-        with ThreadPool(processes=len(tickers)) as pool:
+        with ThreadPool(processes=10) as pool:
             all_data = pool.starmap(get_price_data_ticker, zip(
                 tickers, start_dates, end_dates))
             logger.debug('Obtained data, concatenating')
@@ -112,14 +131,3 @@ def get_name(ticker: str) -> str:
         print(f'-------  Ticker {ticker} not found -------')
         name = "NA"
     return name
-
-
-if __name__ == '__main__':
-    # data.append(investpy.get_fund_information(
-    #     fund='Vanguard International Shares Index Fund', country='australia'))
-    isin = 'AU60VAN00030'
-    data = investpy.search_funds(by='isin', value=isin)
-    name = data.at[0, 'name']
-    country = data.at[0, 'country']
-    df = investpy.get_fund_historical_data(
-        fund=name, country=country, from_date='1/1/2018', to_date='31/12/2018')
