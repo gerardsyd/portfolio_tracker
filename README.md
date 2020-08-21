@@ -8,9 +8,8 @@ Known bugs
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 To be built / implemented
-- Move away from using CSVs 
-- Ability to delete / clean-up on exit or have login?
-- Dashboard for portfolio: change in val over time
-- Stock-by-stock performance 
-- Make tables / interface look nicer
+- Add trades section to include dividends
+- dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l
+- Dashboard for portfolio: change in val over time; overview position / p&l
+- allow hiding certain stocks on portfolio + recalculate position
 - Automate entering trade data? 
