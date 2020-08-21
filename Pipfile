@@ -12,16 +12,11 @@ flake8 = "*"
 [packages]
 pandas = "*"
 requests = "*"
-requests-html = "*"
-pandas-datareader = "*"
 yfinance = "*"
 investpy = "*"
 flask = "*"
-flask-session = "*"
 scipy = "*"
-
-[requires]
-python_version = "3.7"
+selenium = "*"
 
 [pipenv]
 allow_prereleases = true
