@@ -10,6 +10,7 @@ utils/custom_funds.py
 portfolio_tracker.code-workspace
 *.bat
 *.log
+*.lock
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/
