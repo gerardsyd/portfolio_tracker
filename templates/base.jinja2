@@ -1,20 +1,9 @@
 <!DOCTYPE html>
 <head>
+{% block head %}
+
+{% endblock %}
 <style>
-table {
-    font-family: arial, sans-serif;
-    border-collapse: collapse;
-    width: 100%;
-}
-
-tr:nth-child(even) {background-color: #dddddd}
-
-tr:hover {background-color: #d5e5ff}
-
-td, th {
-    border: 1px solid #dddddd;
-    padding: 8px;
-}
 
 #container *{padding: 5px 5px;}
 
@@ -23,18 +12,15 @@ a.button{
     text-decoration: none;
     color: initial;
 }
-/*
-tbody{
-  padding-top:30px;
-  position:relative;
+
+table{
+    font-family: Calibri;
+    font-size:10;
+    border-collapse: collapse
 }
-table thead {
-  display:table;
-  width: 100%;
-  position: fixed;
-}
-table{table-layout:fixed}
-*/
+th{text-align: left}
+tr{text-align: right}
+
 </style>
 </head>
 
@@ -44,3 +30,4 @@ table{table-layout:fixed}
 	{% endblock %}
 </body>
 </html>
+

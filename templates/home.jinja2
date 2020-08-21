@@ -1,12 +1,35 @@
 {% extends 'base.jinja2' %}
-{% block content %}
 
-<head>
+{% block head %}
 <title>{{title}}</title>
+<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.css"/>
+<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+<script>
+
+$(document).ready( function () {
+    var nameType = $.fn.dataTable.absoluteOrder( {
+        value: 'nan', position: 'bottom'
+    } );
+    $('#T_portfolio').DataTable({
+        paging: false,
+        autoWidth: false,
+        searching: false,
+        fixedHeader: {
+        footer: true
+        },
+        columnDefs: [
+        { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: "num-fmt" },
+        { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType }
+        ]
+    });
+} );
+</script>
+
 <style>
 .inputWrapper{
     display:grid;
-    grid-template-columns: 25% 25%;
+    grid-template-columns: 35% 25%;
     grid-column-gap:10px;
     grid-row-gap:5px;
     align-content:center;
@@ -28,15 +51,15 @@ input[type=date]{
 }
 button{
     width: 10em;
-    height:1.5em;
+    height: 1.5em;
 }
-label{
-  font-weight:bold;
-}
+label{font-weight:bold}
+table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
+table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
 </style>
-</head>
+{% endblock %}
 
-
+{% block content %}
 <h1>Portfolio Tracker</h1>
     <div class='inputWrapper'>
         <label> Portfolio actions:</label>
@@ -49,7 +72,8 @@ label{
         <form action="/update" method="post">
             <input type="date" name="up_date" id="up_date">
             <input type="checkbox" id="hide_zero" name="hide_zero" value="True" checked> Hide zero balances?
-            <input type="submit" value="Update Prices">
+            <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices?
+            <input type="submit" value="Refresh">
         </form>
         <a href="{{ url_for('view_trades') }}"><button>Edit / View Trades</button></a>
         <form action="/save" method="post"><input type="submit" value="Save Portfolio"></form>
