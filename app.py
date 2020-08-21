@@ -1,3 +1,4 @@
+from datetime import datetime
 import logging
 from os import path
 
@@ -9,13 +10,13 @@ from portfolio import Portfolio
 
 logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',
                     datefmt='%d-%m-%Y:%H:%M:%S',
-                    level=logging.DEBUG, filename=r'logs\logs.log')
+                    level=logging.INFO, filename=r'logs\logs.log')
 logger = logging.getLogger('pt_logger')
 
 app = Flask(__name__)
-TRADES_FILE = 'data/pf_trades.csv'
-DATA_FILE = 'data/pf_data.csv'
-NAMES_FILE = 'data/pf_names.csv'
+TRADES_FILE = 'data/pf_trades.pkl'
+DATA_FILE = 'data/pf_data.pkl'
+NAMES_FILE = 'data/pf_names.pkl'
 PF_FORMAT_DICT = {'Quantity': "{:,.0f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
                   'LastPrice': '{:,.2f}', 'CurrVal': '{:,.2f}', 'AvgCost': '{:,.2f}', 'Cost': '{:,.2f}', 'RlGain': '{:,.2f}', 'UnRlGain': '{:,.2f}',
                   'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}', }
@@ -34,26 +35,36 @@ def updatepf():
     as_at_date = None if request.form.get(
         'up_date') == '' else request.form.get('up_date')
     hide_zero = bool(request.form.get('hide_zero')) or False
+    no_update = not(bool(request.form.get('no_update'))) or False
 
+    start = datetime.now()
     if path.isfile(TRADES_FILE):
         logger.info(f'{TRADES_FILE} exists, loading')
-        pf_trades = pd.read_csv(TRADES_FILE,
-                                parse_dates=['Date'], dayfirst=True)
+        pf_trades = pd.read_pickle(TRADES_FILE)
         pf = Portfolio(pf_trades, DATA_FILE, NAMES_FILE)
     else:
         pf = Portfolio(filename=DATA_FILE, names_filename=NAMES_FILE)
-    df = pf.info_date(as_at_date, hide_zero)
+    logger.info(f'file loading took {(datetime.now()-start)} to run')
+    start = datetime.now()
+    df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
+    logger.info(f'info_date took {(datetime.now()-start)} to run')
+    start = datetime.now()
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = (df.style
                .applymap(neg_red, subset=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'])
                .format(PF_FORMAT_DICT)
-               .set_properties(**{'font-size': '9pt', 'font-family': 'Calibri', 'text-align': 'right'})
                .set_properties(**{'text-align': 'left'}, subset=['Ticker', 'Name'])
                .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
                .hide_index()
+               .set_uuid('portfolio')
+               .set_table_attributes('class="hover stripe row-border order-column display compact" style="width:100%"')
                .render()
                )
-    pf.trades_df.to_csv(TRADES_FILE, index=False)
+    df_html = add_footer(df_html)
+    logger.info(f'render HTML took {(datetime.now()-start)} to run')
+    start = datetime.now()
+    pf.trades_df.to_pickle(TRADES_FILE)
+    logger.info(f'trades_df.to_pickle took {(datetime.now()-start)} to run')
     return render_template('home.jinja2', tables=df_html, title="Portfolio Tracker: Portfolio")
 
 
@@ -63,7 +74,7 @@ def loadpf():
         try:
             trade_df = pd.read_csv(request.files.get(
                 'pf_file'), parse_dates=['Date'], dayfirst=True, thousands=',')
-            trade_df.to_csv(TRADES_FILE, index=False)
+            trade_df.to_pickle(TRADES_FILE)
             message = "Loaded successfully"
         except:
             message = "An error occured, try again!"
@@ -74,8 +85,7 @@ def loadpf():
 def savepf():
     if path.isfile(TRADES_FILE):
         logger.info(f'{TRADES_FILE} exists, loading')
-        pf_trades = pd.read_csv(TRADES_FILE,
-                                parse_dates=['Date'], dayfirst=True)
+        pf_trades = pd.read_pickle(TRADES_FILE)
         pf = Portfolio(pf_trades, DATA_FILE)
     else:
         return render_template('home.jinja2', message='File not found', title="Portfolio Tracker: Home")
@@ -91,13 +101,12 @@ def add_trades():
         trades_df = resp_to_trades_df(request)
         if path.isfile(TRADES_FILE):
             logger.info(f'{TRADES_FILE} exists, loading')
-            pf_trades = pd.read_csv(TRADES_FILE,
-                                    parse_dates=['Date'], dayfirst=True)
+            pf_trades = pd.read_pickle(TRADES_FILE)
             pf = Portfolio(pf_trades, DATA_FILE)
             pf.add_trades(trades_df)
         else:
             pf = Portfolio(trades_df, DATA_FILE)
-        pf.trades_df.to_csv(TRADES_FILE, index=False)
+        pf.trades_df.to_pickle(TRADES_FILE)
         return render_template('home.jinja2', message='Trades added successfully')
     return render_template('add_trades.jinja2')
 
@@ -107,8 +116,7 @@ def view_trades():
     if request.method == 'GET':
         if path.isfile(TRADES_FILE):
             logger.info(f'{TRADES_FILE} exists, loading')
-            df = pd.read_csv(TRADES_FILE,
-                             parse_dates=['Date'], dayfirst=True)
+            df = pd.read_pickle(TRADES_FILE)
         else:
             return render_template('home.jinja2', message='No portfolio trades founds. Please load file or add trades', title="Portfolio Tracker: Home")
 
@@ -120,10 +128,11 @@ def view_trades():
 
         df_html = (df.style
                    .format({c: html_input(c) for c in df.columns})
+                   .set_uuid('view_trades')
                    .hide_index()
                    .render()
                    )
-        return render_template('view_trades.jinja2', tables=df_html)
+        return render_template('view_trades.jinja2', tables=df_html, message=request.args.get('message'))
     else:
         # gets updated trade data
         trades_df = resp_to_trades_df(request)
@@ -132,8 +141,31 @@ def view_trades():
         trades_df['Delete?'] = request.form.getlist('Delete?')
         trades_df = trades_df[trades_df['Delete?'] == '0']
         trades_df.drop(['Delete?'], axis=1, inplace=True)
-        trades_df.to_csv(TRADES_FILE, index=False)
-        return redirect(url_for('view_trades'))
+        trades_df.to_pickle(TRADES_FILE)
+        return redirect(url_for('view_trades', message='Successfully updated trades'))
+
+
+@app.route('/stock/<ticker>')
+def stock(ticker):
+    return render_template('stock_dynamic.jinja2', stock_name=ticker)
+
+
+def add_footer(html: str):
+    """
+    Adds tfoot tags to total row to allow sorting
+
+    Args:
+        html (str): table html string
+
+    Returns:
+        [type]: table html string
+    """
+
+    loc = html.rfind('<tr>')
+    html = html[:loc] + '<tfoot>' + html[loc:]
+    loc = html.rfind('</tr>')
+    html = html[:loc] + '</tfoot>' + html[loc:]
+    return html
 
 
 def resp_to_trades_df(req: request):
@@ -157,6 +189,16 @@ def resp_to_trades_df(req: request):
 
 
 def html_input(col: str):
+    """
+    Adds html input tags for given column
+
+    Args:
+        col (str): column in pandas table
+
+    Returns:
+        string: f-string with relevant html tags
+    """
+
     if col == 'Delete?':
         return f'<input type="hidden" name="{col}" value="0"><input type="checkbox" onclick="this.previousSibling.value=1-this.previousSibling.value">'
     else:
@@ -165,8 +207,8 @@ def html_input(col: str):
 
 def neg_red(val: float):
     """
-    Takes a scalar and returns a string with
-    the css property `'color: red'` for negative
+    Takes a value and returns a string with
+    the css property color: red for negative
     strings, green otherwise.
     """
     try:
@@ -178,4 +220,4 @@ def neg_red(val: float):
 
 
 if __name__ == '__main__':
-    app.run(debug=True)
+    app.run(debug=False, use_reloader=False)
