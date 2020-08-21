@@ -21,8 +21,8 @@ class Portfolio():
     TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction']
     INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
                     'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
-    DEFAULT_FILE = 'data/data.csv'
-    DEFAULT_NAME_FILE = DEFAULT_FILE.split(".csv")[0] + "_names.csv"
+    DEFAULT_FILE = 'data/data.pkl'
+    DEFAULT_NAME_FILE = DEFAULT_FILE.split(".pkl")[0] + "_names.pkl"
 
     def __init__(self, trades: pd.DataFrame = None, filename: str = DEFAULT_FILE, names_filename: str = DEFAULT_NAME_FILE):
         """
@@ -32,8 +32,8 @@ class Portfolio():
         Args:
             trades (pd.DataFrame, optional): Dataframe containing stock trades with the following columns: 
             [Date, Ticker, Quantity, Price, Fees, Direction]. Defaults to None.
-            filename (str, optional): File name and location to save pricing data. Defaults to 'data/data.csv'.
-            names_filename (str, optional): File name and location to save ticker / name data. Defaults to 'data/data_names.csv'.
+            filename (str, optional): File name and location to save pricing data. Defaults to 'data/data.pkl'.
+            names_filename (str, optional): File name and location to save ticker / name data. Defaults to 'data/data_names.pkl'.
 
         Raises:
             ValueError: Raised if columns of dataframe passed in do not match required columns
@@ -82,7 +82,7 @@ class Portfolio():
         """
         return self.info_date()
 
-    def info_date(self, as_at_date: str = None, hide_zero_pos: bool = False, min_days: int = -1) -> pd.DataFrame:
+    def info_date(self, as_at_date: str = None,  min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
         """
         Updates portfolio and returns portfolio dataframe as at a specified date (or as at today if no date provided)
 
@@ -104,13 +104,20 @@ class Portfolio():
         logger.debug(
             'Get historical and current positions and merge with info dataframe')
 
+        start = datetime.now()
         curr_df, split_df, div_df = self.curr_positions(
-            self.trades_df['Ticker'].unique(), as_at_date, min_days)
+            self.trades_df['Ticker'].unique(), as_at_date, min_days, no_update)
+        logger.info(f'curr_positions took {(datetime.now()-start)} to run')
+        start = datetime.now()
         hist_df = self.hist_positions(as_at_date, split_df, div_df)
+        logger.info(f'hist_positions took {(datetime.now()-start)}s to run')
+        start = datetime.now()
 
         # calculate IRR and save in DF
         irr_df = self.calc_IRR(hist_df[['Date', 'Ticker', 'CF', 'CumQuan']].copy(), curr_df[[
                                'Date', 'Ticker', 'Close']].copy())
+        logger.info(f'calc_IRR took {(datetime.now()-start)}s to run')
+        start = datetime.now()
 
         # clean-up dataframe
         hist_df.drop(['Date', 'Quantity', 'Price', 'Fees', 'Direction', 'AdjQuan',
@@ -121,7 +128,7 @@ class Portfolio():
 
         # drop rows where quantity is zero if argument passed is true
         if hide_zero_pos:
-            hist_df = hist_df[hist_df['Quantity'] != 0]
+            hist_df = hist_df[hist_df['Quantity'].round(2) != 0]
 
         # Calculate total cost of each stock in portfolio
         hist_df['Cost'] = hist_df.Quantity * hist_df.AvgCost
@@ -145,13 +152,17 @@ class Portfolio():
         info_df.at[tot_index, '$LastChange'] = info_df['$LastChange'].sum()
         info_df['%PF'] = info_df['CurrVal'] / info_df['CurrVal'][:-1].sum()
         info_df['UnRlGain'] = info_df['CurrVal'] + info_df['Cost']
+        info_df['UnRlGain'].fillna(0, inplace=True)
         info_df['TotalGain'] = info_df['UnRlGain'] + \
             info_df['RlGain'] + info_df['Dividends']
         info_df['%UnRlGain'] = info_df['UnRlGain'] / -info_df['Cost']
+        logger.info(f'clean-up took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         # get full names of stock from ticker
         info_df.loc[0:tot_index-1,
                     'Name'] = self.stock_names(info_df.loc[0:tot_index-1, 'Ticker'])
+        logger.info(f'stock_names took {(datetime.now()-start)} to run')
 
         # set up column in order of INFO_COLUMNS
         info_df = info_df[self.INFO_COLUMNS]
@@ -174,6 +185,7 @@ class Portfolio():
         df = df.append(pd.Series(name='Total'))
         df.loc['Total'] = df.loc[:, list_cols].sum(axis=0)
         df.at['Total', index] = 'Total'
+        df['Date'] = pd.to_datetime(df['Date'].fillna(pd.NaT))
         df.reset_index()
         return df
 
@@ -194,12 +206,16 @@ class Portfolio():
         """
 
         # make copy of trades_df with trades only looking at trades before or equal to as_at_date
+        start = datetime.now()
         hist_pos = self.trades_df[self.trades_df.Date <= as_at_date].copy()
 
         hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
         hist_pos.Quantity = pd.to_numeric(hist_pos.Quantity)
         hist_pos.Price = pd.to_numeric(hist_pos.Price)
         hist_pos.Fees = pd.to_numeric(hist_pos.Fees)
+        logger.info(
+            f'hist_pos load and clean took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         # adjust trades for splits
         for ticker in hist_pos['Ticker'].unique():
@@ -213,6 +229,9 @@ class Portfolio():
                         (hist_pos['Date'] <= row['Date']) & (hist_pos['Ticker'] == ticker), hist_pos['Price'] / row['Stock Splits'], hist_pos['Price'])
                     div_df['Dividends'] = np.where(
                         (div_df['Date'] <= row['Date']) & (div_df['Ticker'] == ticker), div_df['Dividends'] / row['Stock Splits'], div_df['Dividends'])
+
+        logger.info(f'adjust for splits took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         # create new columns to include cashflow, quantity (with buy / sell) and cumulative quantity by ticker
         hist_pos['CF'] = np.where(
@@ -238,8 +257,10 @@ class Portfolio():
                     except ValueError:
                         pass  # do nothing if no shares are held during dividend period
         hist_pos.sort_values(['Ticker', 'Date'], inplace=True)
+        logger.info(f'add divs took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
-        # Calculate realised gains calculated as trade value less cost base + Dividends. Cost base calculated based on average entry price (not sted for sales)
+        # Calculate realised gains calculated as trade value less cost base + dividends. Cost base calculated based on average entry price (not adjusted for sales)
         hist_pos['CFBuy'] = np.where(
             hist_pos.Direction == 'Buy', hist_pos.CF, 0)
         hist_pos['CumCost'] = hist_pos.groupby('Ticker')['CFBuy'].cumsum()
@@ -263,6 +284,7 @@ class Portfolio():
             hist_pos.Direction == 'Div', hist_pos.CF, 0)
         hist_pos['CumDiv'] = hist_pos.groupby('Ticker')['Dividends'].cumsum()
         hist_pos['TotalRlGain'] = hist_pos.groupby('Ticker')['RlGain'].cumsum()
+        logger.info(f'hist_pos clean up took {(datetime.now()-start)} to run')
 
         return hist_pos
 
@@ -270,19 +292,19 @@ class Portfolio():
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(
             0.)  # create group for each group of shares bought / sold
         DF = df.groupby('grouping', as_index=False).apply(
-            lambda x: x.CFBuy.sum()/x.QBuy.sum()).reset_index()
+            lambda x: x.CFBuy.sum()/x.QBuy.sum()).reset_index(drop=True)
         DF.columns = ['grouping', 'AvgCostAdj']
         df = pd.merge(df, DF, how='left', on='grouping')
         return df
 
-    def curr_positions(self, tickers: List, as_at_date: datetime, min_days: int) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def curr_positions(self, tickers: List, as_at_date: datetime, min_days: int, no_update: bool = False) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         """
         Calculate current position for all stocks in Portfolio object (based on trades_df) as at given date
 
         Args:
             tickers (List): List of tickers in Portfolio
             as_at_date (datetime): Date as at  which to calculate portfolio position
-            min_days (int, optional): Checks saved CSV with price data and if price data was updated within min_days, then will not update data. 
+            min_days (int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data. 
                 Defaults to -1 which will update day prior and today's information (to update any intra-day information that may have been saved).
 
         Returns:
@@ -291,81 +313,90 @@ class Portfolio():
                 2. split_df containing split data for stocks in portfolio
                 3. div_df containing dividend data for stocks in portfolio
         """
-
+        start = datetime.now()
         min_date = self.trades_df["Date"].min()
         # check if file exists
         if path.isfile(self.filename):
             # if exists, load data into df. Run get price data for each ticker from last date to as_at_date + new tickers
-            curr_df = pd.read_csv(self.filename, parse_dates=[
-                'Date'], dayfirst=True)
-
+            curr_df = pd.read_pickle(self.filename)
+            logger.info(
+                f'read price data took {(datetime.now()-start)} to run')
+            start = datetime.now()
             # get tickers and dates for info in current database
             curr_df_data = curr_df.groupby('Ticker').agg(
                 Min=('Date', 'min'), Max=('Date', 'max'))
             curr_df_data.reset_index(inplace=True)
 
-            tickers_data, start_date_data, end_date_data = [], [], []
+            if not no_update:
+                tickers_data, start_date_data, end_date_data = [], [], []
 
-            # update for tickers in current database and in current trade list
-            tickers_to_update = set(tickers).intersection(
-                set(curr_df['Ticker']))
-            for _, row in curr_df_data.iterrows():
-                # check if current ticker in trade list
-                if row.Ticker in tickers_to_update:
-                    last_date = row['Max']
-                    logger.info(
-                        f'Ticker is {row.Ticker} with last date of {last_date} and as at date of {as_at_date} and days since update is {(as_at_date - last_date).days}')
-                    if (as_at_date - last_date).days >= min_days:
-                        tickers_data.append(row.Ticker)
-                        start_date_data.append(last_date)
-                        end_date_data.append(as_at_date)
+                # update for tickers in current database and in current trade list
+                tickers_to_update = set(tickers).intersection(
+                    set(curr_df['Ticker']))
+                for _, row in curr_df_data.iterrows():
+                    # check if current ticker in trade list
+                    if row.Ticker in tickers_to_update:
+                        last_date = row['Max']
+                        logger.debug(
+                            f'Ticker is {row.Ticker} with last date of {last_date} and as at date of {as_at_date} and days since update is {(as_at_date - last_date).days}')
+                        if (as_at_date - last_date).days >= min_days:
+                            tickers_data.append(row.Ticker)
+                            start_date_data.append(last_date)
+                            end_date_data.append(as_at_date)
 
-            price_data = data.get_price_data(
-                tickers_data, start_date_data, end_date_data)
-            price_data.reset_index(inplace=True)
-            try:
-                price_data.set_index(['Ticker', 'Date'],
-                                     inplace=True, verify_integrity=True)
-            except ValueError:
-                price_data.drop_duplicates(
-                    keep='last', inplace=True, subset=['Ticker', 'Date'])
-                price_data.set_index(['Ticker', 'Date'],
-                                     inplace=True, verify_integrity=True)
-            curr_df.set_index(['Ticker', 'Date'], inplace=True)
-            curr_df = curr_df.combine_first(price_data)  # adds new data / rows
-            curr_df.update(price_data)  # updates data for existing rows
-            curr_df.reset_index(inplace=True)
-
-            # update for tickers not in existing dataset
-            tickers_data, start_date_data, end_date_data = [], [], []
-            tickers_to_update = set(tickers).difference(set(curr_df['Ticker']))
-            for ticker in tickers_to_update:
-                tickers_data.append(ticker)
-                start_date_data.append(min_date)
-                end_date_data.append(as_at_date)
-
-            if(len(tickers_data) > 0):
                 price_data = data.get_price_data(
                     tickers_data, start_date_data, end_date_data)
                 price_data.reset_index(inplace=True)
-                curr_df = curr_df.append(price_data, ignore_index=True)
-            curr_df.reset_index(inplace=True, drop=True)
+                try:
+                    price_data.set_index(['Ticker', 'Date'],
+                                         inplace=True, verify_integrity=True)
+                except ValueError:
+                    price_data.drop_duplicates(
+                        keep='last', inplace=True, subset=['Ticker', 'Date'])
+                    price_data.set_index(['Ticker', 'Date'],
+                                         inplace=True, verify_integrity=True)
+                curr_df.set_index(['Ticker', 'Date'], inplace=True)
+                curr_df = curr_df.combine_first(
+                    price_data)  # adds new data / rows
+                curr_df.update(price_data)  # updates data for existing rows
+                curr_df.reset_index(inplace=True)
 
+                # update for tickers not in existing dataset
+                tickers_data, start_date_data, end_date_data = [], [], []
+                tickers_to_update = set(tickers).difference(
+                    set(curr_df['Ticker']))
+                for ticker in tickers_to_update:
+                    tickers_data.append(ticker)
+                    start_date_data.append(min_date)
+                    end_date_data.append(as_at_date)
+
+                if(len(tickers_data) > 0):
+                    price_data = data.get_price_data(
+                        tickers_data, start_date_data, end_date_data)
+                    price_data.reset_index(inplace=True)
+                    curr_df = curr_df.append(price_data, ignore_index=True)
+                curr_df.reset_index(inplace=True, drop=True)
         else:
             # if does not exist, run data.get_price_data for full period
             curr_df = data.get_price_data(
                 tickers, repeat(min_date, len(tickers)), repeat(as_at_date, len(tickers)))
             curr_df.reset_index(inplace=True)
 
+        logger.info(f'update prices took {(datetime.now()-start)} to run')
+        start = datetime.now()
         # Calculate last price change
         curr_df['PrevPrice'] = curr_df.groupby(
             'Ticker').shift(1, fill_value=0)['Close']
         curr_df['%LastChange'] = curr_df['Close'] / curr_df['PrevPrice'] - 1
-        curr_df['%LastChange'].replace([np.inf, -np.inf], np.NaN, inplace=True)
+        curr_df['%LastChange'].replace([np.inf, -np.inf], np.nan, inplace=True)
+        logger.info(f'last change took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         # sort and save file
         curr_df.sort_values(['Ticker', 'Date'], inplace=True)
-        curr_df.to_csv(self.filename, index=False)
+        curr_df.to_pickle(self.filename)
+        logger.info(f'save took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         # create df with current positions as at the as_at_date
         price_df = curr_df[curr_df['Date'] <= as_at_date].copy()
@@ -379,6 +410,8 @@ class Portfolio():
         div_df = curr_df[[
             'Ticker', 'Date', 'Dividends']]
         div_df = curr_df[curr_df['Dividends'] != 0.0]
+        logger.info(f'curr_pos clean up took {(datetime.now()-start)} to run')
+        start = datetime.now()
 
         return price_df, split_df, div_df
 
@@ -406,8 +439,8 @@ class Portfolio():
                 curr_p.at[ticker, 'CF'] = row['CumQuan'] * \
                     curr_p.loc[ticker, 'Close']
             except KeyError:
-                # print(f'No stock data for {ticker}')
-                curr_p.at[ticker, 'CF'] = np.NaN
+                logger.debug(f'No stock data for {ticker}')
+                curr_p.at[ticker, 'CF'] = np.nan
 
         # clean up dataframes and reset indices before merge
         hist_pos.drop(['CumQuan'], axis=1, inplace=True)
@@ -438,15 +471,15 @@ class Portfolio():
         return IRR_df
 
     def stock_names(self, tickers):
-        # load csv with names. If does not exist, create new dataframe
+        # load pickle with names. If does not exist, create new dataframe
         if path.isfile(self.name_file):
-            name_df = pd.read_csv(self.name_file, index_col=0)
+            name_df = pd.read_pickle(self.name_file)
         else:
             name_df = pd.DataFrame(
                 columns=['Ticker', 'Name'])
             name_df.set_index('Ticker', inplace=True)
 
-        # check if ticker exists in loaded CSV. If not, get from yahoo finance
+        # check if ticker exists in loaded file. If not, get from yahoo finance
         for ticker in tickers:
             try:
                 name = name_df.loc[ticker, 'Name']
@@ -457,8 +490,8 @@ class Portfolio():
         # sort all except total row
         name_df.sort_values('Ticker', inplace=True)
 
-        # Save CSV to allow for faster load times
-        name_df.to_csv(self.name_file)
+        # Save pickle to allow for faster load times
+        name_df.to_pickle(self.name_file)
 
         # deletes any names that are in the file but not in portfolio
         for ticker in set(name_df.index.tolist()).difference(set(tickers)):
