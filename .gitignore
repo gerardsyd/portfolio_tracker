@@ -9,6 +9,7 @@ zArchive/
 utils/custom_funds.py
 portfolio_tracker.code-workspace
 *.bat
+*.log
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/
