@@ -29,7 +29,7 @@ $(document).ready( function () {
 <style>
 .inputWrapper{
     display:grid;
-    grid-template-columns: 35% 25%;
+    grid-template-columns: 45% 25%;
     grid-column-gap:10px;
     grid-row-gap:5px;
     align-content:center;
@@ -71,9 +71,16 @@ table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
         <a href="{{ url_for('add_trades') }}"><button>Add Trades</button></a>
         <form action="/update" method="post">
             <input type="date" name="up_date" id="up_date">
-            <input type="checkbox" id="hide_zero" name="hide_zero" value="True" checked> Hide zero balances?
-            <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices?
-            <input type="submit" value="Refresh">
+            <input type="checkbox" id="hide_zero" name="hide_zero" value="True" checked> Hide zero balances? 
+            <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices? 
+            Choose currency: 
+            <select name="currency" id="currency">
+                <option value="AUD">AUD</option>
+                <option value="USD">USD</option>
+                <option value="GBP">GBP</option>
+                <option value="EUR">EUR</option>
+                <option value="ZAR">ZAR</option>
+               <input type="submit" value="Refresh">
         </form>
         <a href="{{ url_for('view_trades') }}"><button>Edit / View Trades</button></a>
         <form action="/save" method="post"><input type="submit" value="Save Portfolio"></form>

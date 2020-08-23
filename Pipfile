@@ -17,6 +17,7 @@ investpy = "*"
 flask = "*"
 scipy = "*"
 selenium = "*"
+python-binance = "*"
 
 [pipenv]
 allow_prereleases = true

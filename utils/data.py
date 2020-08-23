@@ -1,6 +1,5 @@
 from datetime import datetime
 import logging
-
 from multiprocessing.pool import ThreadPool
 from typing import List
 
@@ -9,11 +8,13 @@ import pandas as pd
 import numpy as np
 import yfinance as yf
 
+from utils.crypto import get_crypto_price
+
 logger = logging.getLogger('pt_logger.Stock')
 yf.pdr_override()
 
 
-def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.datetime64) -> pd.DataFrame:
+def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.datetime64, currency: str) -> pd.DataFrame:
     """
     Gets price data for ticker for specified period
 
@@ -69,6 +70,11 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
             print(
                 f'-------  Dates are equal, no data downloaded for ISIN: {isin} -------')
             dl_data = pd.DataFrame()
+    elif ticker_type == 'CRYPTO':
+        raw_ticker = ticker.split('.')[0]
+        dl_data = get_crypto_price(raw_ticker, start_date, end_date, currency)
+        if not isinstance(dl_data, pd.DataFrame):
+            dl_data = pd.DataFrame()
     else:
         try:
             dl_data = yf.Ticker(ticker).history(
@@ -84,7 +90,7 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
     return dl_data
 
 
-def get_price_data(tickers: List, start_dates: List, end_dates: List) -> pd.DataFrame:
+def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: str) -> pd.DataFrame:
     """
     Gets price data for a list of tickers for period specified
 
@@ -99,7 +105,7 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List) -> pd.Data
     try:
         with ThreadPool(processes=10) as pool:
             all_data = pool.starmap(get_price_data_ticker, zip(
-                tickers, start_dates, end_dates))
+                tickers, start_dates, end_dates, currency))
             logger.debug('Obtained data, concatenating')
             concat_data = pd.concat(
                 all_data, keys=tickers, names=['Ticker', 'Date'])

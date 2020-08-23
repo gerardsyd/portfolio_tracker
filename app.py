@@ -36,14 +36,17 @@ def updatepf():
         'up_date') == '' else request.form.get('up_date')
     hide_zero = bool(request.form.get('hide_zero')) or False
     no_update = not(bool(request.form.get('no_update'))) or False
+    currency = request.form.get('currency') or 'AUD'
 
     start = datetime.now()
     if path.isfile(TRADES_FILE):
         logger.info(f'{TRADES_FILE} exists, loading')
         pf_trades = pd.read_pickle(TRADES_FILE)
-        pf = Portfolio(pf_trades, DATA_FILE, NAMES_FILE)
+        pf = Portfolio(trades=pf_trades, currency=currency,
+                       filename=DATA_FILE, names_filename=NAMES_FILE)
     else:
-        pf = Portfolio(filename=DATA_FILE, names_filename=NAMES_FILE)
+        pf = Portfolio(filename=DATA_FILE,
+                       names_filename=NAMES_FILE, currency=currency)
     logger.info(f'file loading took {(datetime.now()-start)} to run')
     start = datetime.now()
     df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
@@ -86,10 +89,9 @@ def savepf():
     if path.isfile(TRADES_FILE):
         logger.info(f'{TRADES_FILE} exists, loading')
         pf_trades = pd.read_pickle(TRADES_FILE)
-        pf = Portfolio(pf_trades, DATA_FILE)
     else:
         return render_template('home.jinja2', message='File not found', title="Portfolio Tracker: Home")
-    resp = make_response(pf.trades_df.to_csv(index=False))
+    resp = make_response(pf_trades.to_csv(index=False))
     resp.headers["Content-Disposition"] = "attachment; filename=trades.csv"
     resp.headers["Content-Type"] = "text/csv"
     return resp

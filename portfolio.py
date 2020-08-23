@@ -24,13 +24,13 @@ class Portfolio():
     DEFAULT_FILE = 'data/data.pkl'
     DEFAULT_NAME_FILE = DEFAULT_FILE.split(".pkl")[0] + "_names.pkl"
 
-    def __init__(self, trades: pd.DataFrame = None, filename: str = DEFAULT_FILE, names_filename: str = DEFAULT_NAME_FILE):
+    def __init__(self, trades: pd.DataFrame = None, currency: str = 'AUD', filename: str = DEFAULT_FILE, names_filename: str = DEFAULT_NAME_FILE):
         """
         Creates a new portfolio. Can accept a dataframe of trades
 
 
         Args:
-            trades (pd.DataFrame, optional): Dataframe containing stock trades with the following columns: 
+            trades (pd.DataFrame, optional): Dataframe containing stock trades with the following columns:
             [Date, Ticker, Quantity, Price, Fees, Direction]. Defaults to None.
             filename (str, optional): File name and location to save pricing data. Defaults to 'data/data.pkl'.
             names_filename (str, optional): File name and location to save ticker / name data. Defaults to 'data/data_names.pkl'.
@@ -45,6 +45,7 @@ class Portfolio():
             self.add_trades(trades)
         self.filename = filename
         self.name_file = names_filename
+        self.currency = currency
 
     def add_trades(self, trades: pd.DataFrame):
         """
@@ -201,8 +202,8 @@ class Portfolio():
         Returns:
             pd.DataFrame: Dataframe containing following information for each stock held in portfolio
 
-        ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction', 'CF', 'AdjQuan', 'CumQuan', 'CFBuy', 'CumCost' 
-                    'QBuy', 'QBuyQuan', 'AvgCost', 'RlGain', 'Dividends', 'CumDiv', 'TotalRlGain'] 
+        ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction', 'CF', 'AdjQuan', 'CumQuan', 'CFBuy', 'CumCost'
+                    'QBuy', 'QBuyQuan', 'AvgCost', 'RlGain', 'Dividends', 'CumDiv', 'TotalRlGain']
         """
 
         # make copy of trades_df with trades only looking at trades before or equal to as_at_date
@@ -304,7 +305,7 @@ class Portfolio():
         Args:
             tickers (List): List of tickers in Portfolio
             as_at_date (datetime): Date as at  which to calculate portfolio position
-            min_days (int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data. 
+            min_days (int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data.
                 Defaults to -1 which will update day prior and today's information (to update any intra-day information that may have been saved).
 
         Returns:
@@ -345,7 +346,7 @@ class Portfolio():
                             end_date_data.append(as_at_date)
 
                 price_data = data.get_price_data(
-                    tickers_data, start_date_data, end_date_data)
+                    tickers_data, start_date_data, end_date_data, repeat(self.currency, len(tickers_data)))
                 price_data.reset_index(inplace=True)
                 try:
                     price_data.set_index(['Ticker', 'Date'],
@@ -372,14 +373,15 @@ class Portfolio():
 
                 if(len(tickers_data) > 0):
                     price_data = data.get_price_data(
-                        tickers_data, start_date_data, end_date_data)
+                        tickers_data, start_date_data, end_date_data, repeat(self.currency, len(tickers_data)))
                     price_data.reset_index(inplace=True)
                     curr_df = curr_df.append(price_data, ignore_index=True)
                 curr_df.reset_index(inplace=True, drop=True)
         else:
             # if does not exist, run data.get_price_data for full period
             curr_df = data.get_price_data(
-                tickers, repeat(min_date, len(tickers)), repeat(as_at_date, len(tickers)))
+                tickers, repeat(min_date, len(tickers)), repeat(
+                    as_at_date, len(tickers)), repeat(self.currency, len(tickers)))
             curr_df.reset_index(inplace=True)
 
         logger.info(f'update prices took {(datetime.now()-start)} to run')
