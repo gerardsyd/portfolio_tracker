@@ -137,3 +137,28 @@ def get_name(ticker: str) -> str:
         print(f'-------  Ticker {ticker} not found -------')
         name = "NA"
     return name
+
+
+def get_currency(ticker: str) -> str:
+    """
+    Gets quoted currency of ticker
+
+    Args:
+        ticker (str): String ticker in format that is acceptable to Yahoo Finance
+
+    Returns:
+        str: Full name of stock based on ticker
+    """
+
+    logger.debug(f'Getting quoted currency for {ticker}')
+    try:
+        stock = yf.Ticker(ticker)
+        try:
+            currency = stock.info['currency']
+        except (IndexError, KeyError) as e:
+            print(f'-------  Ticker {ticker} not found -------')
+            currency = "NA"
+    except (ValueError, AttributeError):
+        print(f'-------  Ticker {ticker} not found -------')
+        currency = "NA"
+    return currency

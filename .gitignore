@@ -11,6 +11,7 @@ portfolio_tracker.code-workspace
 *.bat
 *.log
 .env
+*.json
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/

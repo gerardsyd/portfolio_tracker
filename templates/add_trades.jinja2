@@ -35,9 +35,9 @@ label{
             var new_html = `
             <input type='date' name='date' class='trade' required>
             <input type='text' name='ticker' class='trade' required>
-            <input type='number' name='quantity' class='trade' min='1' step='.01' required>
-            <input type='number' name='price' class='trade' min='-1' step='.0001' required>
-            <input type='number' name='fees' class='trade' min='0.0' step='.01' required>
+            <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
+            <input type='number' name='price' class='trade' min='-1' step='.000001' required>
+            <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
             <select name="direction" class='trade' required>
                 <option value="Buy">Buy</option>
                 <option value="Sell">Sell</option>

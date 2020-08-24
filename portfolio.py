@@ -483,10 +483,14 @@ class Portfolio():
 
         # check if ticker exists in loaded file. If not, get from yahoo finance
         for ticker in tickers:
+            ticker_type = ticker.split('.')[1]
             try:
                 name = name_df.loc[ticker, 'Name']
             except KeyError:
-                name = data.get_name(ticker)
+                if ticker_type != 'CRYPTO':
+                    name = data.get_name(ticker)
+                else:
+                    name = ticker.split('.')[0] + self.currency
                 name_df.loc[ticker] = [name]
 
         # sort all except total row

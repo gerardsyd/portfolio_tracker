@@ -17,7 +17,7 @@ app = Flask(__name__)
 TRADES_FILE = 'data/pf_trades.pkl'
 DATA_FILE = 'data/pf_data.pkl'
 NAMES_FILE = 'data/pf_names.pkl'
-PF_FORMAT_DICT = {'Quantity': "{:,.0f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
+PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
                   'LastPrice': '{:,.2f}', 'CurrVal': '{:,.2f}', 'AvgCost': '{:,.2f}', 'Cost': '{:,.2f}', 'RlGain': '{:,.2f}', 'UnRlGain': '{:,.2f}',
                   'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}', }
 TD_TYPE_DICT = {'Date': 'date', 'Ticker': 'text', 'Quantity': 'number',
