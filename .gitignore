@@ -12,6 +12,7 @@ portfolio_tracker.code-workspace
 *.log
 .env
 *.json
+test.py
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/

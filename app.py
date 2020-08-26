@@ -26,7 +26,8 @@ TD_TYPE_DICT = {'Date': 'date', 'Ticker': 'text', 'Quantity': 'number',
 
 @app.route('/')
 def home():
-    return render_template('home.jinja2', title="Portfolio Tracker: Home")
+    return updatepf()
+    # return render_template('home.jinja2', title="Portfolio Tracker: Home")
 
 
 @app.route('/update', methods=['POST'])
@@ -34,8 +35,8 @@ def updatepf():
     # get as at date from drop down. If left blank, set none (defaults to today per portfolio info function)
     as_at_date = None if request.form.get(
         'up_date') == '' else request.form.get('up_date')
-    hide_zero = bool(request.form.get('hide_zero')) or False
-    no_update = not(bool(request.form.get('no_update'))) or False
+    hide_zero = bool(request.form.get('hide_zero')) or True
+    no_update = not(bool(request.form.get('no_update'))) or True
     currency = request.form.get('currency') or 'AUD'
 
     start = datetime.now()

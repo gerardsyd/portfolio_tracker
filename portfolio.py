@@ -139,6 +139,7 @@ class Portfolio():
         info_df.sort_values('Ticker', inplace=True)
         info_df = self._add_total_row(
             info_df, 'Ticker', ['RlGain', 'Cost', 'Dividends'])
+        info_df['Date'] = pd.to_datetime(info_df['Date'].fillna(pd.NaT))
 
         info_df = info_df.merge(irr_df, on='Ticker')
         info_df.reset_index(inplace=True, drop=True)
@@ -169,7 +170,6 @@ class Portfolio():
 
         # set up column in order of INFO_COLUMNS
         info_df = info_df[self.INFO_COLUMNS]
-        info_df['Date'] = pd.to_datetime(info_df['Date'], errors='ignore')
         return info_df
 
     def _add_total_row(self, df: pd.DataFrame, index: str, list_cols: List) -> pd.DataFrame:
