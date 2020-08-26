@@ -139,11 +139,13 @@ class Portfolio():
         info_df.sort_values('Ticker', inplace=True)
         info_df = self._add_total_row(
             info_df, 'Ticker', ['RlGain', 'Cost', 'Dividends'])
+
         info_df = info_df.merge(irr_df, on='Ticker')
         info_df.reset_index(inplace=True, drop=True)
 
         logger.debug('Perform calculations on info dataframe and return')
         tot_index = len(info_df.index)-1
+
         info_df.rename(columns={'Close': 'LastPrice'}, inplace=True)
         info_df['%CostPF'] = info_df['Cost'] / info_df['Cost'][:-1].sum()
         info_df['CurrVal'] = info_df['Quantity'] * info_df['LastPrice']
@@ -167,7 +169,7 @@ class Portfolio():
 
         # set up column in order of INFO_COLUMNS
         info_df = info_df[self.INFO_COLUMNS]
-
+        info_df['Date'] = pd.to_datetime(info_df['Date'], errors='ignore')
         return info_df
 
     def _add_total_row(self, df: pd.DataFrame, index: str, list_cols: List) -> pd.DataFrame:
@@ -184,10 +186,8 @@ class Portfolio():
         """
 
         df = df.append(pd.Series(name='Total'))
-        df.loc['Total'] = df.loc[:, list_cols].sum(axis=0)
+        df.loc['Total'] = df.loc[:, list_cols].sum(axis=0,)
         df.at['Total', index] = 'Total'
-        df['Date'] = pd.to_datetime(df['Date'].fillna(pd.NaT))
-        df.reset_index()
         return df
 
     def hist_positions(self, as_at_date: datetime, split_df: pd.DataFrame, div_df: pd.DataFrame) -> pd.DataFrame:

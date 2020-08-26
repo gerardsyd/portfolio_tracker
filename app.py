@@ -19,7 +19,7 @@ DATA_FILE = 'data/pf_data.pkl'
 NAMES_FILE = 'data/pf_names.pkl'
 PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
                   'LastPrice': '{:,.2f}', 'CurrVal': '{:,.2f}', 'AvgCost': '{:,.2f}', 'Cost': '{:,.2f}', 'RlGain': '{:,.2f}', 'UnRlGain': '{:,.2f}',
-                  'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}', }
+                  'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}'}
 TD_TYPE_DICT = {'Date': 'date', 'Ticker': 'text', 'Quantity': 'number',
                 'Price': 'number', 'Fees': 'number', 'Direction': 'text'}
 
@@ -55,7 +55,7 @@ def updatepf():
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = (df.style
                .applymap(neg_red, subset=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'])
-               .format(PF_FORMAT_DICT)
+               .format(PF_FORMAT_DICT, na_rep="--")
                .set_properties(**{'text-align': 'left'}, subset=['Ticker', 'Name'])
                .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
                .hide_index()
@@ -81,7 +81,7 @@ def loadpf():
             message = "Loaded successfully"
         except:
             message = "An error occured, try again!"
-    return render_template('home.jinja2', message=message, title="Portfolio Tracker: Home")
+        return render_template('home.jinja2', message=message, title="Portfolio Tracker: Home")
 
 
 @app.route('/save', methods=['GET', 'POST'])
@@ -92,8 +92,8 @@ def savepf():
     else:
         return render_template('home.jinja2', message='File not found', title="Portfolio Tracker: Home")
     resp = make_response(pf_trades.to_csv(index=False))
-    resp.headers["Content-Disposition"] = "attachment; filename=trades.csv"
-    resp.headers["Content-Type"] = "text/csv"
+    resp.headers.set("Content-Disposition",
+                     "attachment", filename="trades.csv")
     return resp
 
 
@@ -222,4 +222,4 @@ def neg_red(val: float):
 
 
 if __name__ == '__main__':
-    app.run(debug=False, use_reloader=False)
+    app.run(debug=False, use_reloader=True)
