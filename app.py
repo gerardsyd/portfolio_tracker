@@ -36,7 +36,7 @@ def updatepf():
     as_at_date = None if request.form.get(
         'up_date') == '' else request.form.get('up_date')
     hide_zero = bool(request.form.get('hide_zero')) or True
-    no_update = not(bool(request.form.get('no_update'))) or True
+    no_update = not(bool(request.form.get('no_update'))) or False
     currency = request.form.get('currency') or 'AUD'
 
     start = datetime.now()

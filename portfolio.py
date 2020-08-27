@@ -483,7 +483,11 @@ class Portfolio():
 
         # check if ticker exists in loaded file. If not, get from yahoo finance
         for ticker in tickers:
-            ticker_type = ticker.split('.')[1]
+            try:
+                ticker_type = ticker.split('.')[1]
+            except IndexError:
+                ticker_type = None
+
             try:
                 name = name_df.loc[ticker, 'Name']
             except KeyError:
