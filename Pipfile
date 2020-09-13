@@ -18,6 +18,10 @@ flask = "*"
 scipy = "*"
 selenium = "*"
 python-binance = "*"
+plotly = "*"
+python-dotenv = "*"
+flask-wtf = "*"
+flask-sqlalchemy = "*"
 
 [pipenv]
 allow_prereleases = true

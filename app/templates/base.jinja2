@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<head>
+{% if title %}
+<title> Portfolio Tracker: {{title}} </title>
+{% else %}
+<title> Portfolio Tracker </title>
+{% endif %}
+{% block head %}
+
+{% endblock %}
+<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+<style>
+
+#container *{padding: 5px 5px;}
+
+a.button{
+    appearance: button;
+    text-decoration: none;
+    color: initial;
+}
+
+table{
+    font-family: Calibri;
+    font-size:10;
+    border-collapse: collapse
+}
+th{text-align: left}
+tr{text-align: right}
+
+</style>
+</head>
+
+<body>
+    <div>
+        Portfolio Tracker:
+        <a href="{{ url_for('index') }}">Home</a>
+        <a href="{{ url_for('login') }}">Login</a>
+    </div>
+    <hr>
+        {% with messages = get_flashed_messages() %}
+        {% if messages %}
+        <ul>
+            {% for message in messages %}
+            <li>{{ message }}</li>
+            {% endfor %}
+        </ul>
+        {% endif %}
+        {% endwith %}
+
+	{% block content %}
+
+	{% endblock %}
+</body>
+</html>
+

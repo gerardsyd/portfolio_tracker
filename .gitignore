@@ -12,6 +12,7 @@ portfolio_tracker.code-workspace
 *.log
 .env
 *.json
+*.xlsx
 test.py
 
 # Elastic Beanstalk Files
@@ -19,3 +20,4 @@ test.py
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 .ebignore
+
