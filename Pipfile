@@ -22,6 +22,7 @@ plotly = "*"
 python-dotenv = "*"
 flask-wtf = "*"
 flask-sqlalchemy = "*"
+flask-migrate = "*"
 
 [pipenv]
 allow_prereleases = true
