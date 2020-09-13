@@ -1,4 +1,4 @@
-# IMPORTS
+import logging
 import pandas as pd
 import numpy as np
 import os
@@ -6,6 +6,8 @@ from datetime import datetime
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
+
+logger = logging.getLogger('pt_logger.Stock')
 
 # get binance api key and secret from environment variables
 binance_api_key = os.environ.get('BINANCE_API_KEY')
@@ -33,10 +35,16 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
         fx_prices = None
     else:
         crypto_pair = symbol + 'BTC'
-        crypto_prices = get_prices_from_API(crypto_pair, start_date, end_date)
-        fx_pair = 'BTC' + currency
-        fx_prices = get_prices_from_API(fx_pair, start_date, end_date)
-        fx_prices = fx_prices[['Close']]
+        if currency == 'BTC':
+            crypto_prices = get_prices_from_API(
+                crypto_pair, start_date, end_date)
+            fx_prices = None
+        else:
+            crypto_prices = get_prices_from_API(
+                crypto_pair, start_date, end_date)
+            fx_pair = 'BTC' + currency
+            fx_prices = get_prices_from_API(fx_pair, start_date, end_date)
+            fx_prices = fx_prices[['Close']]
 
     if isinstance(crypto_prices, pd.DataFrame) and isinstance(fx_prices, pd.DataFrame):
         # if both dataframes exist, then get crypto-currency pair
@@ -51,8 +59,8 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
                       'tb_quote_av', 'ignore', 'Close_y'], axis=1, inplace=True)
         data_df['Stock Splits'] = 0
         data_df['Dividends'] = 0
-    elif isinstance(crypto_prices, pd.DataFrame) and symbol == 'BTC':
-        # if required crypto is BTC, get BTC-currency pair
+    elif isinstance(crypto_prices, pd.DataFrame) and (symbol == 'BTC' or currency == 'BTC'):
+        # if required crypto is BTC (or BTC is currency), get BTC-currency / crypto-BTC pair
         data_df = crypto_prices.drop(['close_time', 'quote_av', 'trades', 'tb_base_av',
                                       'tb_quote_av', 'ignore'], axis=1)
         data_df['Stock Splits'] = 0
@@ -94,6 +102,6 @@ def get_prices_from_API(symbol_pair: str, start_date: np.datetime64, end_date: n
 
 
 if __name__ == '__main__':
-    df = get_crypto_price('XRP', datetime(2020, 8, 1),
-                          datetime(2020, 8, 22), 'AUD')
+    df = get_crypto_price('AUD', datetime(2019, 6, 1),
+                          datetime(2020, 8, 22), 'USDT')
     print(df)
