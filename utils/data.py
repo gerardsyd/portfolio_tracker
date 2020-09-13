@@ -12,7 +12,6 @@ from yfinance import ticker
 from utils.crypto import get_crypto_price
 
 logger = logging.getLogger('pt_logger.Stock')
-yf.pdr_override()
 
 
 def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.datetime64, currency: str) -> pd.DataFrame:
@@ -115,27 +114,28 @@ def get_fund_data(isin: str, start_date: np.datetime64, end_date: np.datetime64)
     Returns:
         pd.DataFrame: Dataframe containing close, split, dividend data for ticker from start_date to end_date
     """
-
+    # check if there is a custom funds module, import and execute custom fund function
+    df = None
     try:
-        fund_search = investpy.search_funds(by='isin', value=isin)
-        name = fund_search.at[0, 'name']
-        country = fund_search.at[0, 'country']
-        df = investpy.get_fund_historical_data(
-            fund=name, country=country, from_date=start_date.strftime('%d/%m/%Y'), to_date=end_date.strftime('%d/%m/%Y'))
-        df.drop('Currency', axis=1, inplace=True)
-        df.reset_index(inplace=True)
-    except RuntimeError:
-        # if not in investpy database, check if there is a custom funds module, import and execute custom fund function
-        try:
-            from utils.custom_funds import get_custom_fund_data
-            df = get_custom_fund_data(
-                isin, start_date, end_date)
-        except ImportError:
-            print('No custom funds module available')
-            df = None
-    except ValueError:
-        df = None
+        from utils.custom_funds import get_custom_fund_data
+        df = get_custom_fund_data(isin, start_date, end_date)
+    except ImportError:
+        print('No custom funds module available')
 
+    # If not data loaded from custom funds, try investpy
+    if not isinstance(df, pd.DataFrame):
+        try:
+            fund_search = investpy.search_funds(by='isin', value=isin)
+            name = fund_search.at[0, 'name']
+            country = fund_search.at[0, 'country']
+            df = investpy.get_fund_historical_data(
+                fund=name, country=country, from_date=start_date.strftime('%d/%m/%Y'), to_date=end_date.strftime('%d/%m/%Y'))
+            df.drop('Currency', axis=1, inplace=True)
+            df.reset_index(inplace=True)
+        except (RuntimeError, ValueError):
+            df = None
+
+    # if data downloaded, include nil stock splits and dividends (as info is not available)
     if isinstance(df, pd.DataFrame):
         df['Stock Splits'] = 0
         df['Dividends'] = 0
