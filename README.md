@@ -3,6 +3,12 @@ Tracks stock, funds, crypto asset portfolio including gains / losses, dividends 
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
 
+## Update 23 September 2020
+- Included bootstrap across app
+- Added login structure
+- Added database migration config (using flask-migrate)
+- Updated templates for bootstrap
+
 ## Update 13 September 2020
 - Updated Flask app structure using Miguel Grinberg format (https://blog.miguelgrinberg.com/post/the-flask-mega-tutorial-part-i-hello-world)
 - Updated Flask to include login
@@ -24,6 +30,11 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 ## To be built / implemented
+- Add trades to SQL dbase linked to user
+- Move portfolio actions to separate user profile page
+- Allow add trades via CSV
+- Allow multiple portfolios?
+- Add support for exchange rates
 - Include edit / add trades in each stock's section
 - Add functionality for divdends to be manually entered
 - dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l

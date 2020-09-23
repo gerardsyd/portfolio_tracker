@@ -1,96 +1,125 @@
 {% extends 'base.jinja2' %}
 
-{% block head %}
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.css"/>
-<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.js"></script>
-<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
-<script>
+{% block app_styles %}
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.css"/>
+    <style>
+        table#T_portfolio.dataTable {font-size:14px}
+        th { font-size: 14px; text-align: left}
+        tr { font-size: 14px; text-align: right}
+        table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
+        table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
+    </style>
+    <!--
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.22/b-1.6.4/b-colvis-1.6.4/cr-1.5.2/fc-3.3.1/fh-3.1.7/r-2.2.6/datatables.min.css"/> 
+    <style>
+        input[type=submit]{
+            width: 10em;  
+            height: 1.5em;
+        }
+        input[type=file]{
+            width: 22em;  
+            height: 1.5em;
+            padding-right:1em;
+        }
+        input[type=date]{
+            width: 10em;
+            height:1.5em;
+            padding-right:1em;
+        }
+        button{
+            width: 10em;
+            height: 1.5em;
+        }
+        label{font-weight:bold}
+        .inputWrapper{
+                display:grid;
+                grid-template-columns: 60% 40%;
+                grid-column-gap:10px;
+                grid-row-gap:5px;
+                align-content:center;
+                padding:1em;
+            }
+        table#T_portfolio.dataTable {font-size:15px}
+        table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
+        table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
+    </style>
+    -->
+{% endblock app_styles %}
 
-$(document).ready( function () {
-    var nameType = $.fn.dataTable.absoluteOrder( {
-        value: 'nan', position: 'bottom'
+{% block app_content %}
+<div class="container">
+    <h1>Portfolio for {{ current_user.username }}</h1>
+    <label> Portfolio actions:</label>
+    <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
+        <div class="row">
+            <div class="col-sm"><input type="file" name="pf_file"></div>
+            <div class="col-sm"><input type="submit" value="Load Portfolio"></div>
+            <div class="col-sm"><form action="/save" method="post"><input type="submit" value="Save Portfolio"></form></div>
+        </div>
+    </form>
+    <form action="/update" method="post">
+        <div class="row">
+            <div class="col-sm">
+                <input type="date" name="date" id="date">
+            </div>
+            <div class="col-sm">
+                <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances? 
+            </div>
+            <div class="col-sm">
+                <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices? 
+            </div>
+            <div class="col-sm">
+                Currency: 
+                <select name="currency" id="currency">
+                    <option value="AUD">AUD</option>
+                    <option value="USD">USD</option>
+                    <option value="GBP">GBP</option>
+                    <option value="EUR">EUR</option>
+                    <option value="ZAR">ZAR</option>
+                </select>
+            </div>
+            <div class="col-sm">
+                <input type="submit" value="Refresh">
+            </div>
+        </div>
+    </form>
+    <p>
+</div>
+<div class="container-fluid">
+    <div class="table-responsive">
+            {{tables}}
+    </div>
+</div>
+{% endblock %}
+
+{% block app_scripts %}
+    
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.js"></script>
+    
+    <!--
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/b-1.6.4/b-colvis-1.6.4/cr-1.5.2/fc-3.3.1/fh-3.1.7/r-2.2.6/datatables.min.js"></script> 
+    -->
+    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+    <script>
+    $(document).ready( function () {
+        var nameType = $.fn.dataTable.absoluteOrder( {
+            value: 'nan', position: 'bottom'
+        } );
+        $('#T_portfolio').DataTable({
+            autoWidth: false,
+            columnDefs: [
+                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: "num-fmt" },
+                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType }
+            ],
+            colReorder: true,
+            fixedHeader: {
+                footer: true
+            },
+            paging: false,
+            responsive: true,
+            searching: false
+        });
     } );
-    $('#T_portfolio').DataTable({
-        paging: false,
-        autoWidth: false,
-        searching: false,
-        fixedHeader: {
-        footer: true
-        },
-        columnDefs: [
-        { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: "num-fmt" },
-        { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType }
-        ]
-    });
-} );
-</script>
-<!--
-input[type=submit]{
-    width: 10em;  
-    height: 1.5em;
-}
-input[type=file]{
-    width: 22em;  
-    height: 1.5em;
-    padding-right:1em;
-}
-input[type=date]{
-    width: 10em;
-    height:1.5em;
-    padding-right:1em;
-}
-button{
-    width: 10em;
-    height: 1.5em;
-}
--->
-
-<style>
-label{font-weight:bold}
-.inputWrapper{
-    display:grid;
-    grid-template-columns: 45% 25%;
-    grid-column-gap:10px;
-    grid-row-gap:5px;
-    align-content:center;
-    padding:1em;
-}
-table#T_portfolio.dataTable {font-size:15px}
-table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
-table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
-</style>
-{% endblock %}
-
-{% block content %}
-<h1>Portfolio Tracker</h1>
-    <div class='inputWrapper'>
-        <label> Portfolio actions:</label>
-        <label> Trade actions: </label>
-        <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
-            <input type="file" name="pf_file">
-            <input type="submit" value="Load Portfolio">
-        </form>
-        <a href="{{ url_for('add_trades') }}"><button>Add Trades</button></a>
-        <form action="/update" method="post">
-            <input type="date" name="date" id="date">
-            <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances? 
-            <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices? 
-            Choose currency: 
-            <select name="currency" id="currency">
-                <option value="AUD">AUD</option>
-                <option value="USD">USD</option>
-                <option value="GBP">GBP</option>
-                <option value="EUR">EUR</option>
-                <option value="ZAR">ZAR</option>
-               <input type="submit" value="Refresh">
-        </form>
-        <a href="{{ url_for('view_trades') }}"><button>Edit / View Trades</button></a>
-        <form action="/save" method="post"><input type="submit" value="Save Portfolio"></form>
-    </div>
-    <p>
-    <div><b>{{message}}</b></div>
-    <p>
-    <div>
-        {{tables}}
-    </div>
-{% endblock %}
+    
+    </script>
+{% endblock app_scripts %}

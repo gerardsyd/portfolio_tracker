@@ -23,6 +23,8 @@ python-dotenv = "*"
 flask-wtf = "*"
 flask-sqlalchemy = "*"
 flask-migrate = "*"
+flask-login = "*"
+email-validator = "*"
 
 [pipenv]
 allow_prereleases = true

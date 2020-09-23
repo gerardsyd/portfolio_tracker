@@ -23,4 +23,9 @@ if __name__ == "__main__":
     # df.reset_index(inplace=True, drop=True)
     # df.to_pickle('data/pf_trades.pkl')
     # print(df)
-    pass
+    df = pd.read_pickle('data/pf_names.pkl')
+    # print(df[df.index == 'TEK.AX'])
+    # df.drop(index='TEK.AX', inplace=True)
+    print(df.tail(20))
+    # df.to_pickle('data/pf_names.pkl')
+    # pass

@@ -1,55 +1,94 @@
 <!DOCTYPE html>
-<head>
-{% if title %}
-<title> Portfolio Tracker: {{title}} </title>
-{% else %}
-<title> Portfolio Tracker </title>
-{% endif %}
-{% block head %}
+<html lang="en">
+    <head>
+    {% block head %}
+    <title>
+    {% block title %}
+        {% if title %}Portfolio Tracker: {{title}}{% else %}Portfolio Tracker{% endif %}
+    {% endblock title %}
+    </title>
 
-{% endblock %}
-<link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
-<style>
+    {% block metas %}
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1, shrink-to-fit=no">
+    <meta name="theme-color" content="#563d7c">
+    {% endblock metas %}
 
-#container *{padding: 5px 5px;}
+    {% block styles %}
+    <!-- Bootstrap -->
+    <link rel="stylesheet" href="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/css/bootstrap.min.css" integrity="sha384-JcKb8q3iqJ61gNV9KGb8thSsNjpSL0n8PARn9HuZOnIxN0hoP+VmmDGMN5t9UJ0Z" crossorigin="anonymous">
+    <style>
+        body{
+            padding-top: 60px
+        }
+    </style>
+    <!--
+    <link rel="stylesheet" href="{{url_for('.static', filename='css/SL_bootstrap.min.css')}}">
+    <style>
+        a.button{
+            appearance: button;
+            text-decoration: none;
+            color: initial;
+        }
+        table{
+            font-family: Calibri;
+            font-size:10;
+            border-collapse: collapse
+        }
+        th{text-align: left}
+        tr{text-align: right}
+    </style>
+    -->
+    {% block app_styles %}{% endblock app_styles %}
+    {%- endblock styles %}
+    {%- endblock head %}
+    </head>
 
-a.button{
-    appearance: button;
-    text-decoration: none;
-    color: initial;
-}
+    <body>
+        {% block body %}
+        {% block navbar %}
+        <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top fh-fixedHeader">
+            <a class="navbar-brand" href="#">Portfolio Tracker</a>
+            <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navBarsDetail" aria-controls="navBarsDetail" aria-expanded="false" aria-label="Toggle navigation">
+                <span class="navbar-toggler-icon"></span>
+            </button>
 
-table{
-    font-family: Calibri;
-    font-size:10;
-    border-collapse: collapse
-}
-th{text-align: left}
-tr{text-align: right}
+            <div class="collapse navbar-collapse" id="navBarsDetail">
+                <ul class="navbar-nav mr-auto">
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home<span class="sr-only">(current)</span></a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_trades') }}">Add Trades</a></li>
+                    <li class="nav-item"><a class="nav-link" href="{{ url_for('view_trades') }}">View Trades</a></li>
+                </ul>
+                <ul class="navbar-nav navbar-right">
+                    {% if current_user.is_anonymous %}
+                    <li><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                    {% else %}
+                    <li><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                    {% endif %}
+                </ul>
+            </div>
+        </nav>
+        {% endblock navbar %}
+        
+        {% block content %}
+        <div class="container">
+            {% with messages = get_flashed_messages() %}
+            {% if messages %}
+                {% for message in messages %}
+                <div class="alert alert-info" role="alert">{{ message }}</div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+        </div>
+        {% block app_content %}{% endblock %}
+        {% endblock content %}
 
-</style>
-</head>
-
-<body>
-    <div>
-        Portfolio Tracker:
-        <a href="{{ url_for('index') }}">Home</a>
-        <a href="{{ url_for('login') }}">Login</a>
-    </div>
-    <hr>
-        {% with messages = get_flashed_messages() %}
-        {% if messages %}
-        <ul>
-            {% for message in messages %}
-            <li>{{ message }}</li>
-            {% endfor %}
-        </ul>
-        {% endif %}
-        {% endwith %}
-
-	{% block content %}
-
-	{% endblock %}
-</body>
+        {% block scripts %}
+        <script src="https://code.jquery.com/jquery-3.5.1.slim.min.js" integrity="sha384-DfXdz2htPH0lsSSs5nCTpuj/zy4C+OGpamoFVy38MVBnE+IbbVYUew+OrCXaRkfj" crossorigin="anonymous"></script>
+        <script src="https://cdn.jsdelivr.net/npm/popper.js@1.16.1/dist/umd/popper.min.js" integrity="sha384-9/reFTGAW83EW2RDu2S0VKaIzap3H66lZH81PoYlFhbGU+6BZp6G7niu735Sk7lN" crossorigin="anonymous"></script>
+        <script src="https://stackpath.bootstrapcdn.com/bootstrap/4.5.2/js/bootstrap.min.js" integrity="sha384-B4gt1jrGC7Jh4AgTPSdUtOBvfO8shuf57BaghqFfPlYxofvL8/KUEfYiJOMMV+rV" crossorigin="anonymous"></script>
+        {% block app_scripts %}{% endblock app_scripts %}
+        {% endblock scripts %}
+        {% endblock body %} 
+    </body>
 </html>
-

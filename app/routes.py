@@ -4,11 +4,15 @@ from os import path
 
 from flask import Flask, flash, render_template, request, redirect, url_for
 from flask.helpers import make_response
+from flask_login import current_user, login_user, logout_user
+from flask_login.utils import login_required
 import pandas as pd
 import plotly.io as pio
+from werkzeug.urls import url_parse
 
-from app import app
-from app.forms import LoginForm
+from app import app, db
+from app.forms import LoginForm, RegistrationForm
+from app.models import User
 from app.portfolio import Portfolio
 from utils import web_utils
 
@@ -22,6 +26,7 @@ NAMES_FILE = 'data/pf_names.pkl'
 
 @app.route('/')
 @app.route('/index')
+@login_required
 def index():
     return updatepf()
     # return render_template('home.jinja2', title="Portfolio Tracker: Home")
@@ -29,15 +34,47 @@ def index():
 
 @app.route('/login', methods=['GET', 'POST'])
 def login():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
     form = LoginForm()
     if form.validate_on_submit():
-        flash(
-            f'Login requested for user {form.username.data}, remember_me={form.remember_me.data}')
-        return redirect(url_for('index'))
+        user = User.query.filter_by(username=form.username.data).first()
+        print(form.password.data)
+        if user is None or not user.check_password(form.password.data):
+            flash('Invalid username or password')
+            return redirect(url_for('login'))
+        login_user(user, remember=form.remember_me.data)
+        next_page = request.args.get('next')
+        if not next_page or url_parse(next_page).netloc != '':
+            next_page = url_for('index')
+        return redirect(next_page)
     return render_template('login.jinja2', title='Sign In', form=form)
 
 
+@app.route('/logout')
+@login_required
+def logout():
+    logout_user()
+    return redirect(url_for('index'))
+
+
+@app.route('/register', methods=['GET', 'POST'])
+def register():
+    if current_user.is_authenticated:
+        return redirect(url_for('index'))
+    form = RegistrationForm()
+    if form.validate_on_submit():
+        user = User(username=form.username.data, email=form.email.data)
+        user.set_password(form.password.data)
+        db.session.add(user)
+        db.session.commit()
+        flash('Congratulations, you have been registered! Please login.')
+        return redirect(url_for('login'))
+    return render_template('register.jinja2', title='Register', form=form)
+
+
 @app.route('/update', methods=['POST'])
+@login_required
 def updatepf():
     # get as at date from drop down. If left blank, set none (defaults to today per portfolio info function)
     as_at_date = None if request.form.get(
@@ -75,25 +112,28 @@ def updatepf():
 
 
 @app.route('/load', methods=['GET', 'POST'])
+@login_required
 def loadpf():
     if request.method == 'POST':
         try:
             trade_df = pd.read_csv(request.files.get(
                 'pf_file'), parse_dates=['Date'], dayfirst=True, thousands=',')
             trade_df.to_pickle(TRADES_FILE)
-            message = "Loaded successfully"
+            flash("Loaded successfully")
         except:
-            message = "An error occured, try again!"
-        return render_template('home.jinja2', message=message, title='Overview')
+            flash("An error occured, try again!")
+        return render_template('home.jinja2', title='Overview')
 
 
 @app.route('/save', methods=['GET', 'POST'])
+@login_required
 def savepf():
     if path.isfile(TRADES_FILE):
         logger.info(f'{TRADES_FILE} exists, loading')
         pf_trades = pd.read_pickle(TRADES_FILE)
     else:
-        return render_template('home.jinja2', message='File not found', title='Overview')
+        flash("File not found")
+        return render_template('home.jinja2', title='Overview')
     resp = make_response(pf_trades.to_csv(index=False))
     resp.headers.set("Content-Disposition",
                      "attachment", filename="trades.csv")
@@ -101,6 +141,7 @@ def savepf():
 
 
 @app.route('/add_trades', methods=['GET', 'POST'])
+@login_required
 def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
@@ -113,18 +154,21 @@ def add_trades():
             pf = Portfolio(trades_df, DATA_FILE)
         pf.trades_df.reset_index(inplace=True, drop=True)
         pf.trades_df.to_pickle(TRADES_FILE)
-        return render_template('home.jinja2', message='Trades added successfully', title='Overview')
+        flash('Trades added successfully')
+        return render_template('home.jinja2', title='Overview')
     return render_template('add_trades.jinja2', title='Add Trades')
 
 
 @app.route('/view_trades', methods=['GET', 'POST'])
+@login_required
 def view_trades():
     if request.method == 'GET':
         if path.isfile(TRADES_FILE):
             logger.info(f'{TRADES_FILE} exists, loading')
             df = pd.read_pickle(TRADES_FILE)
         else:
-            return render_template('home.jinja2', message='No portfolio trades founds. Please load file or add trades', title='Overview')
+            flash('No portfolio trades founds. Please load file or add trades')
+            return render_template('home.jinja2', title='Overview')
 
         # format date to allow render in date input field
         df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -137,7 +181,7 @@ def view_trades():
                    .hide_index()
                    .render()
                    )
-        return render_template('view_trades.jinja2', tables=df_html, message=request.args.get('message'), title='View Trades')
+        return render_template('view_trades.jinja2', tables=df_html, title='View Trades')
     else:
         # gets updated trade data
         trades_df = web_utils.resp_to_trades_df(request)
@@ -148,10 +192,12 @@ def view_trades():
         trades_df.drop(['Delete?'], axis=1, inplace=True)
         trades_df.reset_index(inplace=True, drop=True)
         trades_df.to_pickle(TRADES_FILE)
-        return redirect(url_for('view_trades', message='Successfully updated trades', title='View Trades'))
+        flash('Successfully updated trades')
+        return redirect(url_for('view_trades', title='View Trades'))
 
 
 @app.route('/stock/<ticker>')
+@login_required
 def stock(ticker):
     currency = request.args.get('currency')
     as_at_date = datetime.strptime(request.args.get('date'), '%Y-%m-%d')

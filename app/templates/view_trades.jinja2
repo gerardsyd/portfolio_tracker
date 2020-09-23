@@ -1,5 +1,5 @@
 {% extends 'base.jinja2' %}
-{% block head %}
+{% block app_head %}
 <style>
 div{
     max-width: 800px
@@ -7,7 +7,8 @@ div{
 </style>
 {% endblock %}
 
-{% block content %}
+{% block app_content %}
+<div class="container">
 <h1>Portfolio Tracker</h1>
 <h2>View Portfolio Trades</h2>
 <p>
@@ -16,10 +17,11 @@ div{
 <form method="post">
 <button type="submit">Update & Save</button>
 <a href="/"><button type="button">Back</button></a>
-    <div>
+    <div class="table-responsive">
         {{tables}}
     </div>
 <button type="submit">Update & Save</button>
 <a href="/"><button type="button">Back</button></a>
 </form>
+</div>
 {% endblock %}

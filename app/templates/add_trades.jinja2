@@ -1,33 +1,7 @@
 {% extends 'base.jinja2' %}
-{% block content %}
-<html>
-<head>
-<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
-<style>
-.inputWrapper{
-    display:grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
-    grid-column-gap:10px;
-    grid-row-gap:5px;
-}
-input{
-    width: 10em;  height: 1.5em;
-}
-label{
-  font-weight:bold;
-}
-.input_section{
-    display:grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
-    grid-column-gap:10px;
-    grid-row-gap:5px;
-}
-.spacer{
-  height:10px;
-}
-</style>
-</head>
 
+{% block app_styles %}
+<script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
 <script>
     $(document).ready(function(){
         $('.outer').on('click', '.add_trade', function(){
@@ -48,29 +22,52 @@ label{
         });
     });
 </script>
+<style>
+.inputWrapper{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
+    grid-column-gap:10px;
+    grid-row-gap:5px;
+}
+input{
+    width: 10em;  height: 1.5em;
+}
+label{
+    font-weight:bold;
+}
+.input_section{
+    display:grid;
+    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
+    grid-column-gap:10px;
+    grid-row-gap:5px;
+}
+.spacer{
+    height:10px;
+}
+</style>
+{% endblock app_styles %}
 
-<body>
-<h1>Portfolio Tracker</h1>
-<p><h2>Add Trades </h2>
-<div class="outer"> <!--Used to anchor jquery updates -->
-    <div class="inputWrapper">
-    <label>Date</label>
-    <label>Ticker</label>
-    <label>Quantity</label>
-    <label>Price</label>
-    <label>Fees</label>
-    <label>Direction</label>
-    </div>
-    <div class='spacer'></div>
-    <form method ="POST">
-        <div class="input_section"></div>
+{% block app_content %}
+<div class="container">
+    <h1>Portfolio Tracker</h1>
+    <p><h2>Add Trades </h2>
+    <div class="outer"> 
+    <!--Used to anchor jquery updates -->
+        <form method ="POST">
+            <div class="input_section">
+                <label>Date</label>
+                <label>Ticker</label>
+                <label>Quantity</label>
+                <label>Price</label>
+                <label>Fees</label>
+                <label>Direction</label>
+                <div class='spacer'></div>
+            </div>
             <div class='spacer'></div>
             <button class="add_trade" type="button">Add trade</button>
             <button class="submit_data" type="submit">Add all</button>
             <a href="/"><button type="button">Cancel</button></a>
-        </div>
-    </form>
-</body>
-</html>
-
+        </form>
+    </div>        
+</div>
 {% endblock %}

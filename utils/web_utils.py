@@ -50,8 +50,10 @@ def resp_to_trades_df(req: request):
 
     df = pd.DataFrame(columns=Portfolio.TD_COLUMNS)
     data = req.form.listvalues()
+    print(data)
     for col in df.columns:
         df[col] = next(data)
+        print(df[col])
     df['Date'] = pd.to_datetime(df['Date'], dayfirst=True)
     return df
 
@@ -106,7 +108,7 @@ def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List,
                .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
                .hide_index()
                .set_uuid(uuid)
-               .set_table_attributes('class="hover stripe row-border order-column display compact" style="width:100%"')
+               .set_table_attributes('class="hover stripe row-border order-column display compact"')
                )
     if ticker_links:
         df_html.format(
