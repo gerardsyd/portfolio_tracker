@@ -83,7 +83,7 @@ class Portfolio():
         """
         return self.info_date()
 
-    def info_date(self, as_at_date: str = None,  min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
+    def info_date(self, as_at_date: str = None, min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
         """
         Updates portfolio and returns portfolio dataframe as at a specified date (or as at today if no date provided)
 
@@ -156,7 +156,7 @@ class Portfolio():
         info_df.reset_index(inplace=True, drop=True)
 
         logger.debug('Perform calculations on info dataframe and return')
-        tot_index = len(info_df.index)-1
+        tot_index = len(info_df.index) - 1
 
         info_df.rename(columns={'Close': 'LastPrice'}, inplace=True)
         info_df['%CostPF'] = info_df['Cost'] / info_df['Cost'][:-1].sum()
@@ -175,8 +175,8 @@ class Portfolio():
         start = datetime.now()
 
         # get full names of stock from ticker
-        info_df.loc[0:tot_index-1,
-                    'Name'] = self.stock_names(info_df.loc[0:tot_index-1, 'Ticker'])
+        info_df.loc[0:tot_index - 1,
+                    'Name'] = self.stock_names(info_df.loc[0:tot_index - 1, 'Ticker'])
         logger.info(f'stock_names took {(datetime.now()-start)} to run')
 
         # set up column in order of INFO_COLUMNS
@@ -249,9 +249,9 @@ class Portfolio():
 
         # create new columns to include cashflow, quantity (with buy / sell) and cumulative quantity by ticker
         hist_pos['CF'] = np.where(
-            hist_pos.Direction == 'Buy', -1, 1)*(hist_pos.Quantity * hist_pos.Price) - hist_pos.Fees
+            hist_pos.Direction == 'Buy', -1, 1) * (hist_pos.Quantity * hist_pos.Price) - hist_pos.Fees
         hist_pos['AdjQuan'] = np.where(
-            hist_pos.Direction == 'Sell', -1, np.where(hist_pos.Direction == 'Div', 0, 1))*hist_pos.Quantity
+            hist_pos.Direction == 'Sell', -1, np.where(hist_pos.Direction == 'Div', 0, 1)) * hist_pos.Quantity
         hist_pos['CumQuan'] = hist_pos.groupby('Ticker')['AdjQuan'].cumsum()
 
         # add dividend information
@@ -262,15 +262,16 @@ class Portfolio():
                 for _, row in dividends.iterrows():
                     try:
                         dt_div = hist_pos[(hist_pos['Date'] <= row['Date']) & (
-                            hist_pos['Ticker'] == ticker)]['Date'].idxmax()
+                            hist_pos['Ticker'] == ticker)]['Date'].tail(1).index
                         div_qty = hist_pos.loc[dt_div]['CumQuan']
                         # only add dividend if more than 0 shares held
                         if div_qty != 0:
                             hist_pos = hist_pos.append(pd.DataFrame([[row['Date'], ticker, div_qty,
-                                                                      row['Dividends'], 0, 'Div', (div_qty*row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
+                                                                      row['Dividends'], 0, 'Div', (div_qty * row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
+                            hist_pos.sort_values(
+                                ['Ticker', 'Date'], inplace=True)
                     except ValueError:
                         pass  # do nothing if no shares are held during dividend period
-        hist_pos.sort_values(['Ticker', 'Date'], inplace=True)
         logger.info(f'add divs took {(datetime.now()-start)} to run')
         start = datetime.now()
 
@@ -306,7 +307,7 @@ class Portfolio():
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(
             0.)  # create group for each group of shares bought / sold
         DF = df.groupby('grouping', as_index=False).apply(
-            lambda x: x.CFBuy.sum()/x.QBuy.sum()).reset_index(drop=True)
+            lambda x: x.CFBuy.sum() / x.QBuy.sum()).reset_index(drop=True)
         DF.columns = ['grouping', 'AvgCostAdj']
         df = pd.merge(df, DF, how='left', on='grouping')
         return df
@@ -549,7 +550,7 @@ class Portfolio():
             try:
                 pos_at_date = hist_df[hist_df['Date'] <=
                                       row['Date']].iloc[-1]
-                p_hist_df.loc[idx, 'Quantity'] = pos_at_date.get('CumQuan')
+                p_hist_df.loc[idx, 'Quantity'] = pos_at_date['CumQuan']
                 p_hist_df.loc[idx, 'AvgCost'] = pos_at_date['AvgCost']
                 p_hist_df.loc[idx, 'Dividends'] = pos_at_date['CumDiv']
                 p_hist_df.loc[idx, 'RlGain'] = pos_at_date['TotalRlGain']
