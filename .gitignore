@@ -21,3 +21,4 @@ test.py
 !.elasticbeanstalk/*.global.yml
 .ebignore
 
+db_temp.txt

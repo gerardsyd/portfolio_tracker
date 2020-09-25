@@ -31,8 +31,8 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 
 ## To be built / implemented
 - Add trades to SQL dbase linked to user
+- Change menu to have Trades section with add trades and view trades; allow add trades via CSV
 - Move portfolio actions to separate user profile page
-- Allow add trades via CSV
 - Allow multiple portfolios?
 - Add support for exchange rates
 - Include edit / add trades in each stock's section
