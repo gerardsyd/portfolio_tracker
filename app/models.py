@@ -9,6 +9,7 @@ class User(UserMixin, db.Model):
     username = db.Column(db.String(64), index=True, unique=True)
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
+    trades = db.relationship('Trades', backref='user', lazy='dynamic')
 
     def __repr__(self):
         return '<User {}>'.format(self.username)
@@ -22,3 +23,17 @@ class User(UserMixin, db.Model):
     @login.user_loader
     def load_user(id):
         return User.query.get(int(id))
+
+
+class Trades(db.Model):
+    id = db.Column(db.Integer, primary_key=True)
+    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    date = db.Column(db.DateTime, index=True)
+    ticker = db.Column(db.String(10), index=True)
+    quantity = db.Column(db.Float, index=True)
+    price = db.Column(db.Float, index=True)
+    fees = db.Column(db.Float, index=True)
+    direction = db.Column(db.String(10), index=True)
+
+    def __repr__(self):
+        return f'<{self.id}: {self.direction} trade on {self.date} for {self.quantity} of {self.ticker} at {self.price}>'

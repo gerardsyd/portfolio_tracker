@@ -12,7 +12,7 @@ from werkzeug.urls import url_parse
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm
-from app.models import User
+from app.models import User, Trades
 from app.portfolio import Portfolio
 from utils import web_utils
 
@@ -208,7 +208,6 @@ def stock(ticker):
                    filename=DATA_FILE, names_filename=NAMES_FILE)
     hist_pos, divs, splits = pf.price_history(
         ticker=ticker, as_at_date=as_at_date, period='D', no_update=False)
-
     position_fig = web_utils.create_fig(hist_pos, 'Date', ['CurrVal', 'TotalGain'], [
                                         'RlGain', 'UnRlGain', 'Dividends', 'Quantity'], 600)
     position = pio.to_html(
