@@ -41,7 +41,7 @@ def login():
         user = User.query.filter_by(username=form.username.data).first()
         print(form.password.data)
         if user is None or not user.check_password(form.password.data):
-            flash('Invalid username or password')
+            flash('Invalid username or password', 'error')
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')
@@ -68,7 +68,7 @@ def register():
         user.set_password(form.password.data)
         db.session.add(user)
         db.session.commit()
-        flash('Congratulations, you have been registered! Please login.')
+        flash('Congratulations, you have been registered! Please login.', 'info')
         return redirect(url_for('login'))
     return render_template('register.jinja2', title='Register', form=form)
 
@@ -84,15 +84,13 @@ def updatepf():
     currency = request.form.get('currency') or 'AUD'
 
     start = datetime.now()
-    if path.isfile(TRADES_FILE):
-        logger.info(f'{TRADES_FILE} exists, loading')
-        pf_trades = pd.read_pickle(TRADES_FILE)
-        pf = Portfolio(trades=pf_trades, currency=currency,
-                       filename=DATA_FILE, names_filename=NAMES_FILE)
-    else:
-        pf = Portfolio(filename=DATA_FILE,
-                       names_filename=NAMES_FILE, currency=currency)
-    logger.info(f'file loading took {(datetime.now()-start)} to run')
+    pf_trades = current_user.get_trades()
+    if pf_trades.empty:
+        flash('Portfolio is empty. Please add some trades', 'error')
+        return render_template('home.jinja2', title="Overview")
+    pf = Portfolio(trades=pf_trades, currency=currency,
+                   filename=DATA_FILE, names_filename=NAMES_FILE)
+    logger.info(f'trades file loading took {(datetime.now()-start)} to run')
     start = datetime.now()
     df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
     logger.info(f'info_date took {(datetime.now()-start)} to run')
@@ -105,9 +103,6 @@ def updatepf():
     df_html = web_utils.add_footer(df_html)
     df_html = web_utils.update_links(df_html, currency, as_at_date)
     logger.info(f'render HTML took {(datetime.now()-start)} to run')
-    start = datetime.now()
-    pf.trades_df.to_pickle(TRADES_FILE)
-    logger.info(f'trades_df.to_pickle took {(datetime.now()-start)} to run')
     return render_template('home.jinja2', tables=df_html, title="Overview")
 
 
@@ -118,21 +113,21 @@ def loadpf():
         try:
             trade_df = pd.read_csv(request.files.get(
                 'pf_file'), parse_dates=['Date'], dayfirst=True, thousands=',')
-            trade_df.to_pickle(TRADES_FILE)
-            flash("Loaded successfully")
-        except:
-            flash("An error occured, try again!")
+            current_user.add_trades(trade_df)
+            flash("Loaded successfully", "info")
+        except Exception as e:
+            print(e)
+            flash("An error occured, try again!", "error")
         return render_template('home.jinja2', title='Overview')
 
 
 @app.route('/save', methods=['GET', 'POST'])
 @login_required
 def savepf():
-    if path.isfile(TRADES_FILE):
-        logger.info(f'{TRADES_FILE} exists, loading')
-        pf_trades = pd.read_pickle(TRADES_FILE)
-    else:
-        flash("File not found")
+    pf_trades = current_user.get_trades()
+    print(pf_trades)
+    if pf_trades.empty:
+        flash('No trades to export / save. Please add trades and try again', 'error')
         return render_template('home.jinja2', title='Overview')
     resp = make_response(pf_trades.to_csv(index=False))
     resp.headers.set("Content-Disposition",
@@ -145,16 +140,8 @@ def savepf():
 def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
-        if path.isfile(TRADES_FILE):
-            logger.info(f'{TRADES_FILE} exists, loading')
-            pf_trades = pd.read_pickle(TRADES_FILE)
-            pf = Portfolio(pf_trades, DATA_FILE)
-            pf.add_trades(trades_df)
-        else:
-            pf = Portfolio(trades_df, DATA_FILE)
-        pf.trades_df.reset_index(inplace=True, drop=True)
-        pf.trades_df.to_pickle(TRADES_FILE)
-        flash('Trades added successfully')
+        current_user.add_trades(trades_df)
+        flash('Trades added successfully', 'info')
         return render_template('home.jinja2', title='Overview')
     return render_template('add_trades.jinja2', title='Add Trades')
 
@@ -163,12 +150,17 @@ def add_trades():
 @login_required
 def view_trades():
     if request.method == 'GET':
-        if path.isfile(TRADES_FILE):
-            logger.info(f'{TRADES_FILE} exists, loading')
-            df = pd.read_pickle(TRADES_FILE)
-        else:
-            flash('No portfolio trades founds. Please load file or add trades')
+        df = current_user.get_trades()
+        if df.empty:
+            flash('No portfolio trades founds. Please load file or add trades', 'error')
             return render_template('home.jinja2', title='Overview')
+
+        # if path.isfile(TRADES_FILE):
+        #     logger.info(f'{TRADES_FILE} exists, loading')
+        #     df = pd.read_pickle(TRADES_FILE)
+        # else:
+        #     flash('No portfolio trades founds. Please load file or add trades', 'error')
+        #     return render_template('home.jinja2', title='Overview')
 
         # format date to allow render in date input field
         df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -191,8 +183,9 @@ def view_trades():
         trades_df = trades_df[trades_df['Delete?'] == '0']
         trades_df.drop(['Delete?'], axis=1, inplace=True)
         trades_df.reset_index(inplace=True, drop=True)
-        trades_df.to_pickle(TRADES_FILE)
-        flash('Successfully updated trades')
+        current_user.add_trades(trades_df, append=False)
+
+        flash('Successfully updated trades', 'info')
         return redirect(url_for('view_trades', title='View Trades'))
 
 
@@ -201,8 +194,9 @@ def view_trades():
 def stock(ticker):
     currency = request.args.get('currency')
     as_at_date = datetime.strptime(request.args.get('date'), '%Y-%m-%d')
-    logger.info(f'{TRADES_FILE} exists, loading')
-    pf_trades = pd.read_pickle(TRADES_FILE)
+    logger.info(f'Loading trades from db')
+    pf_trades = current_user.get_trades()
+    # pf_trades = pd.read_pickle(TRADES_FILE)
     trades = pf_trades[pf_trades['Ticker'] == ticker].to_html()
     pf = Portfolio(trades=pf_trades, currency=currency,
                    filename=DATA_FILE, names_filename=NAMES_FILE)

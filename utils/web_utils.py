@@ -50,10 +50,8 @@ def resp_to_trades_df(req: request):
 
     df = pd.DataFrame(columns=Portfolio.TD_COLUMNS)
     data = req.form.listvalues()
-    print(data)
     for col in df.columns:
         df[col] = next(data)
-        print(df[col])
     df['Date'] = pd.to_datetime(df['Date'], dayfirst=True)
     return df
 

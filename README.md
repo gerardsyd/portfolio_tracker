@@ -3,6 +3,9 @@ Tracks stock, funds, crypto asset portfolio including gains / losses, dividends 
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
 
+## Update 26 September 2020
+- Added trades to SQL dbase linked to user
+
 ## Update 23 September 2020
 - Included bootstrap across app
 - Added login structure
@@ -30,7 +33,6 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 ## To be built / implemented
-- Add trades to SQL dbase linked to user
 - Change menu to have Trades section with add trades and view trades; allow add trades via CSV
 - Move portfolio actions to separate user profile page
 - Allow multiple portfolios?
@@ -41,3 +43,4 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Dashboard for portfolio: change in val over time; overview position / p&l
 - allow hiding certain stocks on portfolio + recalculate position
 - Automate entering trade data? 
+- Throw error in Portfolio if empty trades_df and info / info_date called

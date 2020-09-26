@@ -72,7 +72,14 @@
         
         {% block content %}
         <div class="container">
-            {% with messages = get_flashed_messages() %}
+            {% with errors = get_flashed_messages(category_filter=["error"]) %}
+            {% if errors %}
+                {% for error in errors %}
+                <div class="alert alert-danger" role="alert">{{ error }}</div>
+                {% endfor %}
+            {% endif %}
+            {% endwith %}
+            {% with messages = get_flashed_messages(category_filter=["info"]) %}
             {% if messages %}
                 {% for message in messages %}
                 <div class="alert alert-info" role="alert">{{ message }}</div>

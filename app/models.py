@@ -1,4 +1,5 @@
 from flask_login import UserMixin
+import pandas as pd
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
@@ -23,6 +24,29 @@ class User(UserMixin, db.Model):
     @login.user_loader
     def load_user(id):
         return User.query.get(int(id))
+
+    def get_trades(self) -> pd.DataFrame:
+        df = pd.read_sql(self.trades.statement, db.engine, index_col='id')
+        df.drop(columns='user_id', inplace=True)
+        df.rename(str.capitalize, axis=1, inplace=True)
+        return df
+
+    def add_trades(self, df: pd.DataFrame, append: bool = True):
+        if append:
+            # If append is true, get existing trades and append passed df to existing trades
+            exist_df = self.get_trades()
+            if not exist_df.empty:
+                df = pd.concat([exist_df, df], ignore_index=True)
+
+        # Replaces current trades with new df
+        self.drop_trades()
+        df.rename(str.lower, axis=1, inplace=True)
+        df['user_id'] = self.id
+        df.to_sql('trades', db.engine, if_exists='append', index=False)
+
+    def drop_trades(self):
+        Trades.query.filter_by(user_id=self.id).delete()
+        db.session.commit()
 
 
 class Trades(db.Model):

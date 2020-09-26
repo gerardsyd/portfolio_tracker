@@ -48,15 +48,19 @@
 
 {% block app_content %}
 <div class="container">
-    <h1>Portfolio for {{ current_user.username }}</h1>
+    <h2>Portfolio for {{ current_user.username }}</h2>
     <label> Portfolio actions:</label>
-    <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
         <div class="row">
-            <div class="col-sm"><input type="file" name="pf_file"></div>
-            <div class="col-sm"><input type="submit" value="Load Portfolio"></div>
+            <div class="col-sm">
+            <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
+                <div class="row">
+                    <div class="col-sm"><input type="file" name="pf_file"></div>
+                    <div class="col-sm"><input type="submit" value="Load Portfolio"></div>
+                </div>
+            </form>
+            </div>
             <div class="col-sm"><form action="/save" method="post"><input type="submit" value="Save Portfolio"></form></div>
         </div>
-    </form>
     <form action="/update" method="post">
         <div class="row">
             <div class="col-sm">

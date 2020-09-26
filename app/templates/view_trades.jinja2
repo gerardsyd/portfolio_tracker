@@ -9,19 +9,20 @@ div{
 
 {% block app_content %}
 <div class="container">
-<h1>Portfolio Tracker</h1>
-<h2>View Portfolio Trades</h2>
-<p>
-<div><b>{{message}}</b></div>
-<p>
-<form method="post">
-<button type="submit">Update & Save</button>
-<a href="/"><button type="button">Back</button></a>
-    <div class="table-responsive">
-        {{tables}}
-    </div>
-<button type="submit">Update & Save</button>
-<a href="/"><button type="button">Back</button></a>
-</form>
+    <h2>View Portfolio Trades</h2>
+    <p>
+    <div><b>{{message}}</b></div>
+    <p>
 </div>
+<div class="container-fluid"><div class ="row justify-content-center">
+    <form method="post">
+    <button type="submit">Update & Save</button>
+    <a href="/"><button type="button">Back</button></a>
+        <div class="table-responsive">
+            {{tables}}
+        </div>
+    <button type="submit">Update & Save</button>
+    <a href="/"><button type="button">Back</button></a>
+    </form>
+</div></div>
 {% endblock %}

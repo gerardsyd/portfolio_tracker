@@ -33,23 +33,27 @@ div{
 {% endblock %}
 
 {% block app_content %}
-<h1>Portfolio Tracker</h1>
+<div class="container">
 <h2>Stock: {{stock_name}}</h2>
 
-<p> Trades
+<p>
+<h3>Trades</h3>
 <div><b>{{trades}}</b></div>
 <p>
 
-<p> Historical position
+<p> 
+<h3>Historical position</h3>
 <div><b>{{postition_df}}</b></div>
 <p>
 
-<p> Dividends
+<p> 
+<h3>Dividends</h3>
 <div><b>{{divs}}</b></div>
 <p>
 
-<p> Splits
+<p> 
+<h3>Splits</h3>
 <div><b>{{splits}}</b></div>
 <p>
-
+<div>
 {% endblock %}
