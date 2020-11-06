@@ -53,10 +53,10 @@ class Trades(db.Model):
     id = db.Column(db.Integer, primary_key=True)
     user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
     date = db.Column(db.DateTime, index=True)
-    ticker = db.Column(db.String(10), index=True)
-    quantity = db.Column(db.Float, index=True)
-    price = db.Column(db.Float, index=True)
-    fees = db.Column(db.Float, index=True)
+    ticker = db.Column(db.String(20), index=True)
+    quantity = db.Column(db.Numeric(20, 10), index=True)
+    price = db.Column(db.Numeric(20, 10), index=True)
+    fees = db.Column(db.Numeric(20, 10), index=True)
     direction = db.Column(db.String(10), index=True)
 
     def __repr__(self):

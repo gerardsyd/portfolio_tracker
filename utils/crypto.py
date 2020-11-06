@@ -29,6 +29,7 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
     """
 
     # check if required crypto is BTC in which case get pair with currency else get fx conversion
+    currency = 'USDT' if currency == 'USD' else currency
     if symbol == 'BTC':
         crypto_pair = symbol + currency
         crypto_prices = get_prices_from_API(crypto_pair, start_date, end_date)
@@ -50,10 +51,10 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
         # if both dataframes exist, then get crypto-currency pair
         data_df = pd.merge(left=crypto_prices, right=fx_prices, right_index=True,
                            left_index=True, how='inner')
-        data_df['Close_x'] = data_df['Close_x']*data_df['Close_y']
-        data_df['Open'] = data_df['Open']*data_df['Close_y']
-        data_df['High'] = data_df['High']*data_df['Close_y']
-        data_df['Low'] = data_df['Low']*data_df['Close_y']
+        data_df['Close_x'] = data_df['Close_x'] * data_df['Close_y']
+        data_df['Open'] = data_df['Open'] * data_df['Close_y']
+        data_df['High'] = data_df['High'] * data_df['Close_y']
+        data_df['Low'] = data_df['Low'] * data_df['Close_y']
         data_df.rename(columns={'Close_x': 'Close'}, inplace=True)
         data_df.drop(['close_time', 'quote_av', 'trades', 'tb_base_av',
                       'tb_quote_av', 'ignore', 'Close_y'], axis=1, inplace=True)

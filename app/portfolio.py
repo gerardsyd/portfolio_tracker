@@ -63,6 +63,8 @@ class Portfolio():
 
         if all(trades.columns == self.TD_COLUMNS):
             logger.debug('Concatenating trades to trade_df')
+            trades.astype(
+                {'Quantity': 'float64', 'Price': 'float64', 'Fees': 'float64', 'Date': 'datetime64[ns]'}).dtypes
             self.trades_df = pd.concat(
                 [self.trades_df, trades])
             self.trades_df.sort_values('Date', inplace=True)
@@ -224,9 +226,6 @@ class Portfolio():
             hist_pos = hist_pos[hist_pos['Ticker'].isin(tickers)].copy()
 
         hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
-        hist_pos.Quantity = pd.to_numeric(hist_pos.Quantity)
-        hist_pos.Price = pd.to_numeric(hist_pos.Price)
-        hist_pos.Fees = pd.to_numeric(hist_pos.Fees)
         logger.info(
             f'hist_pos load and clean took {(datetime.now()-start)} to run')
         start = datetime.now()
@@ -303,13 +302,14 @@ class Portfolio():
 
         return hist_pos
 
-    def calc_avg_price(self, df: pd.DataFrame) -> pd.DataFrame:
+    @staticmethod
+    def calc_avg_price(df: pd.DataFrame) -> pd.DataFrame:
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(
-            0.)  # create group for each group of shares bought / sold
+            0)  # create group for each group of shares bought / sold
         DF = df.groupby('grouping', as_index=False).apply(
             lambda x: x.CFBuy.sum() / x.QBuy.sum()).reset_index(drop=True)
         DF.columns = ['grouping', 'AvgCostAdj']
-        df = pd.merge(df, DF, how='left', on='grouping')
+        df = df.merge(DF, how='left', on='grouping')
         return df
 
     def curr_positions(self, tickers: List, as_at_date: datetime, min_days: int, no_update: bool = False) -> pd.DataFrame:
@@ -576,7 +576,7 @@ if __name__ == "__main__":
     # hist_pos, divs, splits = pf.price_history(
     #     ticker, datetime(2020, 9, 9), 'D')
     # hist_pos.to_pickle('data/test_data.pkl')
-    hist_pos = pd.read_pickle('data/test_data.pkl')
+    trades = pd.read_pickle('data/test_data.pkl')
     fig = web_utils.create_fig2(
-        hist_pos, 600, ['UnRlGain', 'RlGain', 'Dividends'])
+        trades, 600, ['UnRlGain', 'RlGain', 'Dividends'])
     fig.show()

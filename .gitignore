@@ -14,6 +14,7 @@ portfolio_tracker.code-workspace
 *.json
 *.xlsx
 test.py
+db_temp.txt
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/
@@ -21,4 +22,6 @@ test.py
 !.elasticbeanstalk/*.global.yml
 .ebignore
 
-db_temp.txt
+# GCloud Files
+.gcloudignore
+app.yaml

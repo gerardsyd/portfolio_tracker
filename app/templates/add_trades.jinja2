@@ -1,12 +1,15 @@
 {% extends 'base.jinja2' %}
+{% set active_page = "trade" %}
 
 {% block app_styles %}
 <script src="https://ajax.googleapis.com/ajax/libs/jquery/3.2.1/jquery.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.js"></script>
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.css">
 <script>
     $(document).ready(function(){
         $('.outer').on('click', '.add_trade', function(){
             var new_html = `
-            <input type='date' name='date' class='trade' required>
+            <input type='date' name='date' class='trade' required id="date">
             <input type='text' name='ticker' class='trade' required>
             <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
             <input type='number' name='price' class='trade' min='-1' step='.000001' required>
@@ -23,6 +26,8 @@
     });
 </script>
 <style>
+h2 {text-align: center;}
+p {text-align: center;}
 .inputWrapper{
     display:grid;
     grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
@@ -30,7 +35,7 @@
     grid-row-gap:5px;
 }
 input{
-    width: 10em;  height: 1.5em;
+    width: 8em;  height: 1.5em;
 }
 label{
     font-weight:bold;
@@ -49,24 +54,44 @@ label{
 
 {% block app_content %}
 <div class="container">
-    <p><h2>Add Trades </h2>
-    <div class="outer"> 
+    <h2>Add Trades </h2>
+    <p><i>Add trades individually or upload a CSV in <a href="{{ url_for('static', filename='files/trade_template.csv') }}">this format</a> if you have a lot of trades</i></p>
+    <p></p><div class="outer row"> 
     <!--Used to anchor jquery updates -->
-        <form method ="POST">
-            <div class="input_section">
-                <label>Date</label>
-                <label>Ticker</label>
-                <label>Quantity</label>
-                <label>Price</label>
-                <label>Fees</label>
-                <label>Direction</label>
+        <div class="col">
+            <form method ="POST">
+                <div class="input_section">
+                    <label>Date</label><label>Ticker</label><label>Quantity</label><label>Price</label><label>Fees</label><label>Direction</label>
+                    <div class='spacer'></div>
+                    <input type='date' name='date' class='trade' required id="date">
+                    <input type='text' name='ticker' class='trade' required>
+                    <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
+                    <input type='number' name='price' class='trade' min='-1' step='.000001' required>
+                    <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
+                    <select name="direction" class='trade' required>
+                        <option value="Buy">Buy</option>
+                        <option value="Sell">Sell</option>
+                        <option value="Div">Dividend</option>
+                    </select>
+                    <div class='spacer'></div>    
+                </div>
                 <div class='spacer'></div>
+                <button class="add_trade" type="button">Add row</button>
+                <button class="submit_data" type="submit">Add trades</button>
+                <a href="/"><button type="button">Cancel</button></a>
+            </form>
+        </div>
+        <div class="col">
+            <br>
+            <div class="form-group">
+            <form id="pf-trades-upload" action="{{ url_for('load_trades_csv') }}" method="post" enctype="multipart/form-data" class="dropzone pf-file">
+                <!--
+                <br><input type="file" name="pf_file" accept=".csv">
+                <br><input type="submit" value="Load Portfolio">
+                <p><small id="helpId" class="form-text text-muted">Help text</small>-->
+            </form>
             </div>
-            <div class='spacer'></div>
-            <button class="add_trade" type="button">Add trade</button>
-            <button class="submit_data" type="submit">Add all</button>
-            <a href="/"><button type="button">Cancel</button></a>
-        </form>
+        </div>
     </div>        
 </div>
 {% endblock %}

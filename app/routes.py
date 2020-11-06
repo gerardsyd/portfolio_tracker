@@ -2,7 +2,8 @@ from datetime import datetime
 import logging
 from os import path
 
-from flask import Flask, flash, render_template, request, redirect, url_for
+from flask import Flask, flash, render_template, request, redirect, url_for, abort
+from flask.globals import current_app
 from flask.helpers import make_response
 from flask_login import current_user, login_user, logout_user
 from flask_login.utils import login_required
@@ -28,7 +29,7 @@ NAMES_FILE = 'data/pf_names.pkl'
 @app.route('/index')
 @login_required
 def index():
-    return updatepf()
+    return update_pf()
     # return render_template('home.jinja2', title="Portfolio Tracker: Home")
 
 
@@ -39,7 +40,6 @@ def login():
     form = LoginForm()
     if form.validate_on_submit():
         user = User.query.filter_by(username=form.username.data).first()
-        print(form.password.data)
         if user is None or not user.check_password(form.password.data):
             flash('Invalid username or password', 'error')
             return redirect(url_for('login'))
@@ -75,7 +75,7 @@ def register():
 
 @app.route('/update', methods=['POST'])
 @login_required
-def updatepf():
+def update_pf():
     # get as at date from drop down. If left blank, set none (defaults to today per portfolio info function)
     as_at_date = None if request.form.get(
         'date') == '' else request.form.get('date')
@@ -108,24 +108,31 @@ def updatepf():
 
 @app.route('/load', methods=['GET', 'POST'])
 @login_required
-def loadpf():
+def load_trades_csv():
     if request.method == 'POST':
+        pf_file = request.files['file']
+        # checks if file is in allowed extensions
+        if pf_file.filename != '':
+            file_ext = path.splitext(pf_file.filename)[1]
+            if file_ext not in current_app.config['UPLOAD_EXTENSIONS']:
+                flash("Uploaded file is not CSV. Please upload CSV file. ", "error")
+                return redirect(url_for('add_trades'))
+
+        # checks if file can be loaded into dataframe
         try:
-            trade_df = pd.read_csv(request.files.get(
-                'pf_file'), parse_dates=['Date'], dayfirst=True, thousands=',')
+            trade_df = pd.read_csv(pf_file, parse_dates=[
+                                   'Date'], dayfirst=True, thousands=',')
             current_user.add_trades(trade_df)
             flash("Loaded successfully", "info")
         except Exception as e:
-            print(e)
             flash("An error occured, try again!", "error")
-        return render_template('home.jinja2', title='Overview')
+        return redirect(url_for('index'))
 
 
 @app.route('/save', methods=['GET', 'POST'])
 @login_required
-def savepf():
+def save_pf():
     pf_trades = current_user.get_trades()
-    print(pf_trades)
     if pf_trades.empty:
         flash('No trades to export / save. Please add trades and try again', 'error')
         return render_template('home.jinja2', title='Overview')
@@ -210,6 +217,25 @@ def stock(ticker):
     # position = web_utils.pandas_table_styler(hist_pos, neg_cols=[
     #                                          '%LastChange', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker'], ticker_links=False, uuid='stock')
     return render_template('stock_dynamic.jinja2', title=f'Overview for {ticker}', stock_name=ticker, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades)
+
+
+@app.route('/exportpf', methods=['GET', 'POST'])
+@login_required
+def exportpf():
+    as_at_date = None if request.form.get(
+        'date') == '' else request.form.get('date')
+    hide_zero = not(bool(request.form.get('hide_zero'))) or False
+    no_update = not(bool(request.form.get('no_update'))) or False
+    currency = request.form.get('currency') or 'AUD'
+
+    pf_trades = current_user.get_trades()
+    pf = Portfolio(trades=pf_trades, currency=currency,
+                   filename=DATA_FILE, names_filename=NAMES_FILE)
+    df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
+    resp = make_response(df.to_csv(index=False))
+    resp.headers.set("Content-Disposition",
+                     "attachment", filename="pf_position.csv")
+    return resp
 
 
 if __name__ == '__main__':

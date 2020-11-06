@@ -14,18 +14,22 @@ def pkl_to_csv(csv_file_path: str, pkl_file_path: str):
 
 
 if __name__ == "__main__":
-    # df = pkl_to_csv('data/pf_data_NEW.csv', 'data/pf_data.pkl')
-    # df = csv_to_pkl('data/pf_trades_NEW.csv', 'data/pf_trades.pkl')
-    # print(df)
+    df = pkl_to_csv('data/pf_trades_PKL.csv', 'data/pf_trades_CURR.pkl')
+    # df = csv_to_pkl('data/pf_data_201015.csv', 'data/pf_trades_CURR.pkl')
+    # df = csv_to_pkl('data/test2.csv', 'data/pf_data.pkl')
+    print(df)
 
     # df = pd.read_pickle('data/pf_trades.pkl')
     # df.drop(columns=['index'], inplace=True)
     # df.reset_index(inplace=True, drop=True)
     # df.to_pickle('data/pf_trades.pkl')
     # print(df)
-    df = pd.read_pickle('data/pf_names.pkl')
+
+    # print(df)
+    # print(df[df['Ticker'] == 'AU60RGL00047.FUND'])
+
     # print(df[df.index == 'TEK.AX'])
-    # df.drop(index='TEK.AX', inplace=True)
-    print(df.tail(20))
+    # print(df.query('Name == "NA"'))
+    # print(df['Name'] == 'NA')
     # df.to_pickle('data/pf_names.pkl')
     # pass

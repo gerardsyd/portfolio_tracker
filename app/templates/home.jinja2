@@ -1,4 +1,5 @@
 {% extends 'base.jinja2' %}
+{% set active_page = "index" %}
 
 {% block app_styles %}
     <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.css"/>
@@ -50,17 +51,9 @@
 <div class="container">
     <h2>Portfolio for {{ current_user.username }}</h2>
     <label> Portfolio actions:</label>
-        <div class="row">
-            <div class="col-sm">
-            <form action="/load" method="post" enctype="multipart/form-data" class="pf-file">
-                <div class="row">
-                    <div class="col-sm"><input type="file" name="pf_file"></div>
-                    <div class="col-sm"><input type="submit" value="Load Portfolio"></div>
-                </div>
-            </form>
-            </div>
-            <div class="col-sm"><form action="/save" method="post"><input type="submit" value="Save Portfolio"></form></div>
-        </div>
+    <div class="row">
+        <div class="col-sm"><form action="/exportpf" method="post"><input type="submit" value="Export to CSV"></form></div>
+    </div>
     <form action="/update" method="post">
         <div class="row">
             <div class="col-sm">

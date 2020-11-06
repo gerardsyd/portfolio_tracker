@@ -46,24 +46,34 @@
 
     <body>
         {% block body %}
+        
+        {% set active_page = active_page|default('index') -%}   
         {% block navbar %}
         <nav class="navbar navbar-expand-md navbar-dark bg-dark fixed-top fh-fixedHeader">
-            <a class="navbar-brand" href="#">Portfolio Tracker</a>
+            <a class="navbar-brand" href="{{ url_for('index') }}">Portfolio Tracker</a>
             <button class="navbar-toggler" type="button" data-toggle="collapse" data-target="#navBarsDetail" aria-controls="navBarsDetail" aria-expanded="false" aria-label="Toggle navigation">
                 <span class="navbar-toggler-icon"></span>
             </button>
 
             <div class="collapse navbar-collapse" id="navBarsDetail">
                 <ul class="navbar-nav mr-auto">
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('index') }}">Home<span class="sr-only">(current)</span></a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('add_trades') }}">Add Trades</a></li>
-                    <li class="nav-item"><a class="nav-link" href="{{ url_for('view_trades') }}">View Trades</a></li>
+                    <li class="nav-item {{ 'active' if active_page == 'index'}}"><a class="nav-link" href="{{ url_for('index') }}">Home<span class="sr-only">(current)</span></a></li>
+                    <li class="nav-item dropdown">
+                        <a class="nav-link dropdown-toggle {{ 'active' if active_page == 'trade'}}" href="#" id="navbarDropdownMenuLink" data-toggle="dropdown" aria-haspopup="true" aria-expanded="false">
+                        Trades
+                        </a>
+                        <div class="dropdown-menu bg-dark" aria-labelledby="navbarDropdownMenuLink">
+                            <a class="dropdown-item text-light" href="{{ url_for('add_trades') }}">Add Trades</a>
+                            <a class="dropdown-item text-light" href="{{ url_for('view_trades') }}">View Trades</a>
+                            <a class="dropdown-item text-light" href="{{ url_for('save_pf') }}">Save Trades</a>
+                        </div>
+                    </li>
                 </ul>
                 <ul class="navbar-nav navbar-right">
                     {% if current_user.is_anonymous %}
-                    <li><a class="nav-link" href="{{ url_for('login') }}">Login</a></li>
+                    <li><a class="nav-link {{ 'active' if active_page == 'login'}}" href="{{ url_for('login') }}">Login</a></li>
                     {% else %}
-                    <li><a class="nav-link" href="{{ url_for('logout') }}">Logout</a></li>
+                    <li><a class="nav-link {{ 'active' if active_page == 'login'}}" href="{{ url_for('logout') }}">Logout</a></li>
                     {% endif %}
                 </ul>
             </div>

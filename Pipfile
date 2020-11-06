@@ -25,6 +25,12 @@ flask-sqlalchemy = "*"
 flask-migrate = "*"
 flask-login = "*"
 email-validator = "*"
+mysqlclient = "*"
+html5lib = "*"
+bs4 = "*"
+twisted = "*"
+google-cloud-logging = "*"
+google-api-python-client = "*"
 
 [pipenv]
 allow_prereleases = true

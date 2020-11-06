@@ -162,7 +162,12 @@ def get_yf_price(ticker: str, start_date: np.datetime64, end_date: np.datetime64
     except KeyError:
         df = None
     except RuntimeError:
-        logger.debug(f'-------  Yahoo! Finance is not working -------')
+        logger.debug(
+            f'-------  Yahoo! Finance is not working (ticker: {ticker}) -------')
+        df = None
+    except ConnectionError:
+        logger.debug(
+            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
         df = None
     return df
 
