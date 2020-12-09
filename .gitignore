@@ -13,6 +13,9 @@ portfolio_tracker.code-workspace
 .env
 *.json
 test.py
+*temp*
+app.yaml
+.gcloudignore
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/
