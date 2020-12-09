@@ -38,6 +38,8 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
 
     if ticker_type == 'LOAN':
         dl_data = get_loan_data(start_date, end_date)
+    if ticker_type == 'CASH':
+        dl_data = get_cash_data(start_date, end_date)
     elif ticker_type == 'FUND':
         dl_data = get_fund_data(raw_ticker, start_date, end_date)
     elif ticker_type == 'CRYPTO':
@@ -96,6 +98,27 @@ def get_loan_data(start_date: np.datetime64, end_date: np.datetime64) -> pd.Data
     df = pd.DataFrame(
         {'Date': pd.date_range(start_date, end_date)})
     df['Close'] = -1
+    df['Stock Splits'] = 0
+    df['Dividends'] = 0
+    df.set_index('Date', inplace=True)
+    return df
+
+
+def get_cash_data(start_date: np.datetime64, end_date: np.datetime64) -> pd.DataFrame:
+    """
+    Creates loan data dataframe containing -1 as close price and no stock splits or dividends
+
+    Args:
+        start_date (np.datetime64): Start date to get price data
+        end_date (np.datetime64): End date to get price data
+
+    Returns:
+        pd.DataFrame: Dataframe close, split, dividend data for loans from start_date to end_date
+    """
+
+    df = pd.DataFrame(
+        {'Date': pd.date_range(start_date, end_date)})
+    df['Close'] = 1
     df['Stock Splits'] = 0
     df['Dividends'] = 0
     df.set_index('Date', inplace=True)
