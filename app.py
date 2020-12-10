@@ -50,7 +50,11 @@ def updatepf():
                        names_filename=NAMES_FILE, currency=currency)
     logger.info(f'file loading took {(datetime.now()-start)} to run')
     start = datetime.now()
-    df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
+    try:
+        df = pf.info_date(as_at_date, hide_zero_pos=hide_zero,
+                          no_update=no_update)
+    except ValueError:
+        return render_template('home.jinja2', title="Portfolio Tracker: Home", message="Please add trades to start new portfolio")
     logger.info(f'info_date took {(datetime.now()-start)} to run')
     start = datetime.now()
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')

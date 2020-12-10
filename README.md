@@ -9,6 +9,7 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 
 ## Installation
 - Clone the repository and install using pipfile (if using pipenv) or requirements.txt (for other virtual environments)
+- Create two new folders called 'logs' and 'data' under the parent folder (if these do not already exist)
 - If you want to use the crypto pricing functionality, sign up for a Binance account and get the API key / secret and store them in a .env file as follows:
     BINANCE_API_KEY='{your API Key}'
     BINANCE_API_SECRET='{your API Secret}'
