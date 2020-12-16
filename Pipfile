@@ -30,6 +30,7 @@ html5lib = "*"
 bs4 = "*"
 twisted = "*"
 cryptography = ">=3.2"
+gunicorn = "*"
 
 [pipenv]
 allow_prereleases = true
