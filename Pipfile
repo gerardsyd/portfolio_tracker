@@ -29,8 +29,6 @@ mysqlclient = "*"
 html5lib = "*"
 bs4 = "*"
 twisted = "*"
-google-cloud-logging = "*"
-google-api-python-client = "*"
 cryptography = ">=3.2"
 
 [pipenv]
