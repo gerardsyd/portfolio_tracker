@@ -39,7 +39,7 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Add support for exchange rates
 - Include edit / add trades in each stock's section
 - Add functionality for divdends to be manually entered
-- dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l
+- Dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l
 - Dashboard for portfolio: change in val over time; overview position / p&l
 - allow hiding certain stocks on portfolio + recalculate position
 - Automate entering trade data? 
