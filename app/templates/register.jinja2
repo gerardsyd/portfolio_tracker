@@ -1,6 +1,7 @@
 {% extends 'base.jinja2' %}
 
 {% block app_content %}
+<div class="container">
     <h2>Register New User</h2>
     <form action="" method="post">
         {{ form.hidden_tag() }}
@@ -34,4 +35,5 @@
         </p>
         <p>{{ form.submit() }}</p>
     </form>
+</div>
 {% endblock %}
