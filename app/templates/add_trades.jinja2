@@ -6,6 +6,7 @@
 <script src="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.js"></script>
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.css">
 <script>
+    //dynamically adds new rows for trade when add trade button clicked
     $(document).ready(function(){
         $('.outer').on('click', '.add_trade', function(){
             var new_html = `
@@ -24,6 +25,35 @@
             $('.input_section').append(new_html);
         });
     });
+
+    // sets DropZone options 
+    Dropzone.options.uploadtrades = {
+        // Prevents Dropzone from uploading dropped files immediately
+        autoProcessQueue: false,
+        acceptedFiles: ".csv",
+        maxFiles:1,
+
+        init: function() {
+            this.hiddenFileInput.removeAttribute("multiple");
+
+            var submitButton = document.querySelector("#submit-all")
+                uploadtrades = this; // closure
+
+            submitButton.addEventListener("click", function() {
+                uploadtrades.processQueue(); // Tell Dropzone to process all queued files.
+            });
+
+            this.on("addedfile", function() {
+            // Show submit button here and/or inform user to click it.
+            });
+
+            //redirects when file upload is complete
+            this.on("queuecomplete", function(file){
+                window.location = "{{ url_for('load_trades_csv') }}";    
+            });
+        }
+    };
+
 </script>
 <style>
 h2 {text-align: center;}
@@ -84,12 +114,9 @@ label{
         <div class="col">
             <br>
             <div class="form-group">
-            <form id="pf-trades-upload" action="{{ url_for('load_trades_csv') }}" method="post" enctype="multipart/form-data" class="dropzone pf-file">
-                <!--
-                <br><input type="file" name="pf_file" accept=".csv">
-                <br><input type="submit" value="Load Portfolio">
-                <p><small id="helpId" class="form-text text-muted">Help text</small>-->
+            <form id="uploadtrades" action="{{ url_for('load_trades_csv') }}" method="POST" enctype="multipart/form-data" class="dropzone pf-file">
             </form>
+            <button id="submit-all">Upload all trades</button>
             </div>
         </div>
     </div>        

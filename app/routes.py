@@ -126,7 +126,7 @@ def load_trades_csv():
             flash("Loaded successfully", "info")
         except Exception as e:
             flash("An error occured, try again!", "error")
-        return redirect(url_for('index'))
+    return redirect(url_for('index'))
 
 
 @app.route('/save', methods=['GET', 'POST'])
