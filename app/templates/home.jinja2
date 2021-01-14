@@ -10,41 +10,6 @@
         table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
         table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
     </style>
-    <!--
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.22/b-1.6.4/b-colvis-1.6.4/cr-1.5.2/fc-3.3.1/fh-3.1.7/r-2.2.6/datatables.min.css"/> 
-    <style>
-        input[type=submit]{
-            width: 10em;  
-            height: 1.5em;
-        }
-        input[type=file]{
-            width: 22em;  
-            height: 1.5em;
-            padding-right:1em;
-        }
-        input[type=date]{
-            width: 10em;
-            height:1.5em;
-            padding-right:1em;
-        }
-        button{
-            width: 10em;
-            height: 1.5em;
-        }
-        label{font-weight:bold}
-        .inputWrapper{
-                display:grid;
-                grid-template-columns: 60% 40%;
-                grid-column-gap:10px;
-                grid-row-gap:5px;
-                align-content:center;
-                padding:1em;
-            }
-        table#T_portfolio.dataTable {font-size:15px}
-        table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
-        table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
-    </style>
-    -->
 {% endblock app_styles %}
 
 {% block app_content %}
@@ -91,11 +56,7 @@
 
 {% block app_scripts %}
     
-    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.js"></script>
-    
-    <!--
-    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/b-1.6.4/b-colvis-1.6.4/cr-1.5.2/fc-3.3.1/fh-3.1.7/r-2.2.6/datatables.min.js"></script> 
-    -->
+    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.js"></script>   
     <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
     <script>
     $(document).ready( function () {

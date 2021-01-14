@@ -38,7 +38,7 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
 
     if ticker_type == 'LOAN':
         dl_data = get_loan_data(start_date, end_date)
-    if ticker_type == 'CASH':
+    elif ticker_type == 'CASH':
         dl_data = get_cash_data(start_date, end_date)
     elif ticker_type == 'FUND':
         dl_data = get_fund_data(raw_ticker, start_date, end_date)
@@ -96,7 +96,7 @@ def get_loan_data(start_date: np.datetime64, end_date: np.datetime64) -> pd.Data
     """
 
     df = pd.DataFrame(
-        {'Date': pd.date_range(start_date, end_date)})
+        {'Date': pd.date_range(start_date, end_date, freq='D')})
     df['Close'] = -1
     df['Stock Splits'] = 0
     df['Dividends'] = 0
@@ -117,7 +117,7 @@ def get_cash_data(start_date: np.datetime64, end_date: np.datetime64) -> pd.Data
     """
 
     df = pd.DataFrame(
-        {'Date': pd.date_range(start_date, end_date)})
+        {'Date': pd.date_range(start_date, end_date, freq='D')})
     df['Close'] = 1
     df['Stock Splits'] = 0
     df['Dividends'] = 0
