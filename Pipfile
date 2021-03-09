@@ -29,7 +29,7 @@ mysqlclient = "*"
 html5lib = "*"
 bs4 = "*"
 twisted = "*"
-cryptography = ">=3.2"
+cryptography = ">=3.3.2"
 gunicorn = "*"
 
 [pipenv]
