@@ -20,6 +20,12 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Added dashboard for each stock 
 - Added support for crypto with conversion into AUD, EUR, GBP, USD and ZAR (using Binance API)
 
+## Update 3 March 2021
+- Changed menu to have Trades section with add trades and view trades; allow add trades via CSV
+- Added separation of portfolio by type of asset (stocks, loan, cash, crypto, fund)
+- Dashboard for each stock to include performance over time incl buys, sells, divs; trade history (to be better built out)
+- Portfolio broken up into stocks, funds, crypto, loan / cash
+
 ## Installation
 - Clone the repository and install using pipfile (if using pipenv) or requirements.txt (for other virtual environments)
 - Required ENV variables (via .env file or any other method):
@@ -33,14 +39,14 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 ## To be built / implemented
-- Change menu to have Trades section with add trades and view trades; allow add trades via CSV
 - Move portfolio actions to separate user profile page
 - Allow multiple portfolios?
 - Add support for exchange rates
 - Include edit / add trades in each stock's section
-- Add functionality for divdends to be manually entered
+- Add functionality for dividends to be manually entered (partially built)
 - Dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l
 - Dashboard for portfolio: change in val over time; overview position / p&l
 - allow hiding certain stocks on portfolio + recalculate position
 - Automate entering trade data? 
 - Throw error in Portfolio if empty trades_df and info / info_date called
+- Allow deleting row in add trades section

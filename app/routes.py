@@ -98,6 +98,7 @@ def update_pf():
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     if as_at_date == None:
         as_at_date = datetime.strftime(pd.to_datetime('today'), '%Y-%m-%d')
+
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
     df_html = web_utils.add_footer(df_html)

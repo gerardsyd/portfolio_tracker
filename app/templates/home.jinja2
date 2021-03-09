@@ -2,13 +2,14 @@
 {% set active_page = "index" %}
 
 {% block app_styles %}
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.css"/>
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css"/>
     <style>
         table#T_portfolio.dataTable {font-size:14px}
         th { font-size: 14px; text-align: left}
         tr { font-size: 14px; text-align: right}
         table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
         table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
+        .td-left {text-align: left}
     </style>
 {% endblock app_styles %}
 
@@ -56,25 +57,37 @@
 
 {% block app_scripts %}
     
-    <script type="text/javascript" src="https://cdn.datatables.net/v/dt/dt-1.10.22/cr-1.5.2/fh-3.1.7/r-2.2.6/datatables.min.js"></script>   
+    <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
+
     <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
     <script>
     $(document).ready( function () {
         var nameType = $.fn.dataTable.absoluteOrder( {
             value: 'nan', position: 'bottom'
         } );
+        $.fn.dataTable.enum(['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']);
         $('#T_portfolio').DataTable({
             autoWidth: false,
             columnDefs: [
                 { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: "num-fmt" },
-                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType }
+                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType },
+                { targets: 18, visible: false}
             ],
             colReorder: true,
             fixedHeader: {
                 footer: true
             },
+            fixedColumns: {
+                leftColumns: 2
+            },
+            orderFixed: [18, 'asc'],
             paging: false,
             responsive: true,
+            rowGroup:{
+                dataSrc: 18, 
+                startClassName: 'td-left'
+            },
             searching: false
         });
     } );

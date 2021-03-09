@@ -243,3 +243,17 @@ def get_currency(ticker: str) -> str:
         logger.debug(f'-------  Ticker {ticker} not found (currency) -------')
         currency = "NA"
     return currency
+
+
+def get_ticker_type(ticker: str) -> str:
+    try:
+        ticker_type = ticker.split('.')[1]
+    except:
+        ticker_type = None
+
+    if ticker_type == None:
+        return ''
+    elif ticker_type not in ['LOAN', 'CASH', 'FUND', 'CRYPTO']:
+        return 'STOCK'
+    else:
+        return ticker_type

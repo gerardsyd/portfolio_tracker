@@ -18,9 +18,10 @@ class Portfolio():
     Creates a Portfolio object which tracks information on the portfolio
     """
 
+    TYPE_CATEGORIES = ['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']
     TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction']
     INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
-                    'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
+                    'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date', 'Type']
     DEFAULT_FILE = 'data/data.pkl'
     DEFAULT_NAME_FILE = DEFAULT_FILE.split(".pkl")[0] + "_names.pkl"
 
@@ -110,30 +111,19 @@ class Portfolio():
             'Get historical and current positions and merge with info dataframe')
 
         # get stock position as at date, splits and dividend information for portfolio
-        start = datetime.now()
         prices_df = self.curr_positions(
             self.trades_df['Ticker'].unique(), as_at_date, min_days, no_update)
-        logger.info(f'curr_positions took {(datetime.now()-start)} to run')
-        start = datetime.now()
         prices_df.to_pickle(self.filename)
-        logger.info(f'save took {(datetime.now()-start)} to run')
-        start = datetime.now()
         curr_df = self.current_prices(prices_df, as_at_date)
-        logger.info(f'curr_prices took {(datetime.now()-start)} to run')
 
-        start = datetime.now()
         hist_df = self.hist_positions(as_at_date, self.splits_data(
             prices_df), self.dividends_data(prices_df))
-        logger.info(f'hist_positions took {(datetime.now()-start)}s to run')
 
         # calculate IRR and save in DF
-        start = datetime.now()
         irr_df = self.calc_IRR(hist_df[['Date', 'Ticker', 'CF', 'CumQuan']].copy(), curr_df[[
                                'Date', 'Ticker', 'Close']].copy())
-        logger.info(f'calc_IRR took {(datetime.now()-start)}s to run')
 
         # clean-up dataframe
-        start = datetime.now()
         hist_df.drop(['Date', 'Quantity', 'Price', 'Fees', 'Direction', 'AdjQuan',
                       'CFBuy', 'CumCost', 'QBuy', 'CumBuyQuan', 'RlGain', 'CF', 'Dividends'], axis=1, inplace=True)
         hist_df = hist_df.groupby('Ticker').last().reset_index()
@@ -160,6 +150,7 @@ class Portfolio():
         logger.debug('Perform calculations on info dataframe and return')
         tot_index = len(info_df.index) - 1
 
+        # create releevant columns including % of portfolio, current value, last change, unrealised gains, total gains
         info_df.rename(columns={'Close': 'LastPrice'}, inplace=True)
         info_df['%CostPF'] = info_df['Cost'] / info_df['Cost'][:-1].sum()
         info_df['CurrVal'] = info_df['Quantity'] * info_df['LastPrice']
@@ -173,13 +164,14 @@ class Portfolio():
         info_df['TotalGain'] = info_df['UnRlGain'] + \
             info_df['RlGain'] + info_df['Dividends']
         info_df['%UnRlGain'] = info_df['UnRlGain'] / -info_df['Cost']
-        logger.info(f'clean-up took {(datetime.now()-start)} to run')
-        start = datetime.now()
 
         # get full names of stock from ticker
         info_df.loc[0:tot_index - 1,
                     'Name'] = self.stock_names(info_df.loc[0:tot_index - 1, 'Ticker'])
-        logger.info(f'stock_names took {(datetime.now()-start)} to run')
+
+        # get type of stock from ticker
+        info_df['Type'] = pd.Categorical(info_df['Ticker'].apply(
+            data.get_ticker_type), self.TYPE_CATEGORIES)
 
         # set up column in order of INFO_COLUMNS
         info_df = info_df[self.INFO_COLUMNS]
@@ -489,7 +481,7 @@ class Portfolio():
                     name = ticker.split('.')[0] + self.currency
                 name_df.loc[ticker] = [name]
 
-        # sort all except total row
+        # sort by name
         name_df.sort_values('Ticker', inplace=True)
 
         # Save pickle to allow for faster load times
