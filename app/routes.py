@@ -99,7 +99,11 @@ def update_pf():
 
     # Gets time_offset and converts to today's date from UTC to date in local timezone
     if as_at_date == None:
-        tz = timezone(timedelta(minutes=int(request.form.get('time_offset'))))
+        if request.form.get('time_offset') == None:
+            tz = timezone(timedelta(minutes=0))
+        else:
+            tz = timezone(timedelta(minutes=int(
+                request.form.get('time_offset'))))
         as_at_date = pd.to_datetime('today').tz_localize(tz)
         as_at_date = datetime.strftime(as_at_date, '%Y-%m-%d')
         print(as_at_date)
