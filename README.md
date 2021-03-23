@@ -26,6 +26,9 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Dashboard for each stock to include performance over time incl buys, sells, divs; trade history (to be better built out)
 - Portfolio broken up into stocks, funds, crypto, loan / cash
 
+## Update 23 March 2021
+- Included timezone offset to get right date for update from UTC
+
 ## Installation
 - Clone the repository and install using pipfile (if using pipenv) or requirements.txt (for other virtual environments)
 - Required ENV variables (via .env file or any other method):

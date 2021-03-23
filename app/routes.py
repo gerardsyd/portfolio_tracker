@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta, timezone
 import logging
 from os import path
 
@@ -96,8 +96,13 @@ def update_pf():
     logger.info(f'info_date took {(datetime.now()-start)} to run')
     start = datetime.now()
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
+
+    # Gets time_offset and converts to today's date from UTC to date in local timezone
     if as_at_date == None:
-        as_at_date = datetime.strftime(pd.to_datetime('today'), '%Y-%m-%d')
+        tz = timezone(timedelta(minutes=int(request.form.get('time_offset'))))
+        as_at_date = pd.to_datetime('today').tz_localize(tz)
+        as_at_date = datetime.strftime(as_at_date, '%Y-%m-%d')
+        print(as_at_date)
 
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')

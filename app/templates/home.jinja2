@@ -24,6 +24,7 @@
         <div class="row">
             <div class="col-sm">
                 <input type="date" name="date" id="date">
+                <input type="hidden" name="time_offset" id="time_offset" value="0">
             </div>
             <div class="col-sm">
                 <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances? 
@@ -90,7 +91,11 @@
             },
             searching: false
         });
+    var d = new Date();
+    var n = d.getTimezoneOffset();
+    document.getElementById("time_offset").value = n;
     } );
+    
     
     </script>
 {% endblock app_scripts %}
