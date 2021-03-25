@@ -249,11 +249,9 @@ def get_ticker_type(ticker: str) -> str:
     try:
         ticker_type = ticker.split('.')[1]
     except:
-        ticker_type = None
+        ticker_type = None  # if no ticker, then will be US stock
 
-    if ticker_type == None:
-        return ''
-    elif ticker_type not in ['LOAN', 'CASH', 'FUND', 'CRYPTO']:
+    if ticker_type not in ['LOAN', 'CASH', 'FUND', 'CRYPTO']:
         return 'STOCK'
     else:
         return ticker_type
