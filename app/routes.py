@@ -104,9 +104,9 @@ def update_pf():
         else:
             tz = timezone(timedelta(minutes=int(
                 request.form.get('time_offset'))))
-        as_at_date = pd.to_datetime('today').tz_localize(tz)
+        as_at_date = pd.to_datetime('today').tz_localize(tz).tz_convert(None)
+        logger.info(f'Localised datetime is: {as_at_date}')
         as_at_date = datetime.strftime(as_at_date, '%Y-%m-%d')
-        print(as_at_date)
 
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
