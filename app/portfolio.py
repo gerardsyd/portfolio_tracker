@@ -86,7 +86,7 @@ class Portfolio():
         """
         return self.info_date()
 
-    def info_date(self, as_at_date: str = None, min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
+    def info_date(self, as_at_date: datetime = None, min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
         """
         Updates portfolio and returns portfolio dataframe as at a specified date (or as at today if no date provided)
 
@@ -104,8 +104,6 @@ class Portfolio():
 
         if as_at_date == None:
             as_at_date = pd.to_datetime('today')
-        else:
-            as_at_date = datetime.strptime(as_at_date, '%Y-%m-%d')
 
         logger.debug(
             'Get historical and current positions and merge with info dataframe')

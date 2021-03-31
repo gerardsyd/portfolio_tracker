@@ -17,7 +17,8 @@ if __name__ == "__main__":
     import os
     curr_dir = os.getcwd()
 
-    df = pkl_to_csv('pf_data_210113.csv', os.path.join(
+    df = pkl_to_csv(os.path.join(
+        curr_dir, 'pf_data_210331.csv'), os.path.join(
         curr_dir, 'data/pf_data.pkl'))
     # df = csv_to_pkl('data/pf_data_201015.csv', 'data/pf_trades_CURR.pkl')
     # df = csv_to_pkl('data/test2.csv', 'data/pf_data.pkl')

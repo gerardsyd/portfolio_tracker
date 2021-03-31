@@ -76,48 +76,46 @@ def register():
 @app.route('/update', methods=['POST'])
 @login_required
 def update_pf():
-    # get as at date from drop down. If left blank, set none (defaults to today per portfolio info function)
-    as_at_date = None if request.form.get(
-        'date') == '' else request.form.get('date')
+    # get as at date from drop down. If None or left blank, gets time_offset and converts to today's date from UTC to date in local timezone
+    if request.form.get('date') == '' or request.form.get('date') == None:
+        if request.form.get('time_offset') == None:
+            tz = timezone(timedelta(minutes=0))
+        else:
+            tz = timezone(timedelta(minutes=int(
+                request.form.get('time_offset'))))
+        as_at_date = pd.to_datetime(
+            'today', utc=True).tz_convert(tz).tz_convert(None)
+        logger.info(f'Localised datetime is: {as_at_date}')
+    else:
+        as_at_date = request.form.get('date')
+
     hide_zero = not(bool(request.form.get('hide_zero'))) or False
     no_update = not(bool(request.form.get('no_update'))) or False
     currency = request.form.get('currency') or 'AUD'
 
-    start = datetime.now()
     pf_trades = current_user.get_trades()
     if pf_trades.empty:
         flash('Portfolio is empty. Please add some trades', 'error')
         return render_template('home.jinja2', title="Overview")
     pf = Portfolio(trades=pf_trades, currency=currency,
                    filename=DATA_FILE, names_filename=NAMES_FILE)
-    logger.info(f'trades file loading took {(datetime.now()-start)} to run')
     start = datetime.now()
     df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
     logger.info(f'info_date took {(datetime.now()-start)} to run')
+
     start = datetime.now()
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
-
-    # Gets time_offset and converts to today's date from UTC to date in local timezone
-    if as_at_date == None:
-        if request.form.get('time_offset') == None:
-            tz = timezone(timedelta(minutes=0))
-        else:
-            tz = timezone(timedelta(minutes=int(
-                request.form.get('time_offset'))))
-        as_at_date = pd.to_datetime('today').tz_localize(tz).tz_convert(None)
-        logger.info(f'Localised datetime is: {as_at_date}')
-        as_at_date = datetime.strftime(as_at_date, '%Y-%m-%d')
-
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
     df_html = web_utils.add_footer(df_html)
+    as_at_date = str(as_at_date.date())
     df_html = web_utils.update_links(df_html, currency, as_at_date)
     logger.info(f'render HTML took {(datetime.now()-start)} to run')
     return render_template('home.jinja2', tables=df_html, title="Overview")
 
 
-@app.route('/load', methods=['GET', 'POST'])
-@login_required
+@ app.route('/load', methods=['GET', 'POST'])
+@ login_required
 def load_trades_csv():
     if request.method == 'POST':
         pf_file = request.files['file']
@@ -131,7 +129,7 @@ def load_trades_csv():
         # checks if file can be loaded into dataframe
         try:
             trade_df = pd.read_csv(pf_file, parse_dates=[
-                                   'Date'], dayfirst=True, thousands=',')
+                'Date'], dayfirst=True, thousands=',')
             current_user.add_trades(trade_df)
             flash("Loaded successfully", "info")
         except Exception as e:
@@ -139,8 +137,8 @@ def load_trades_csv():
     return redirect(url_for('index'))
 
 
-@app.route('/save', methods=['GET', 'POST'])
-@login_required
+@ app.route('/save', methods=['GET', 'POST'])
+@ login_required
 def save_pf():
     pf_trades = current_user.get_trades()
     if pf_trades.empty:
@@ -152,8 +150,8 @@ def save_pf():
     return resp
 
 
-@app.route('/add_trades', methods=['GET', 'POST'])
-@login_required
+@ app.route('/add_trades', methods=['GET', 'POST'])
+@ login_required
 def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
@@ -163,8 +161,8 @@ def add_trades():
     return render_template('add_trades.jinja2', title='Add Trades')
 
 
-@app.route('/view_trades', methods=['GET', 'POST'])
-@login_required
+@ app.route('/view_trades', methods=['GET', 'POST'])
+@ login_required
 def view_trades():
     if request.method == 'GET':
         df = current_user.get_trades()
@@ -206,8 +204,8 @@ def view_trades():
         return redirect(url_for('view_trades', title='View Trades'))
 
 
-@app.route('/stock/<ticker>')
-@login_required
+@ app.route('/stock/<ticker>')
+@ login_required
 def stock(ticker):
     currency = request.args.get('currency')
     as_at_date = datetime.strptime(request.args.get('date'), '%Y-%m-%d')
@@ -220,7 +218,7 @@ def stock(ticker):
     hist_pos, divs, splits = pf.price_history(
         ticker=ticker, as_at_date=as_at_date, period='D', no_update=False)
     position_fig = web_utils.create_fig(hist_pos, 'Date', ['CurrVal', 'TotalGain'], [
-                                        'RlGain', 'UnRlGain', 'Dividends', 'Quantity'], 600)
+        'RlGain', 'UnRlGain', 'Dividends', 'Quantity'], 600)
     position = pio.to_html(
         position_fig, include_plotlyjs='cdn', full_html=False)
 
@@ -229,8 +227,8 @@ def stock(ticker):
     return render_template('stock_dynamic.jinja2', title=f'Overview for {ticker}', stock_name=ticker, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades)
 
 
-@app.route('/exportpf', methods=['GET', 'POST'])
-@login_required
+@ app.route('/exportpf', methods=['GET', 'POST'])
+@ login_required
 def exportpf():
     as_at_date = None if request.form.get(
         'date') == '' else request.form.get('date')
