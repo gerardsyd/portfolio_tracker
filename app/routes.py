@@ -81,10 +81,10 @@ def update_pf():
         if request.form.get('time_offset') == None:
             tz = timezone(timedelta(minutes=0))
         else:
-            tz = timezone(timedelta(minutes=int(
+            tz = timezone(timedelta(minutes=-int(
                 request.form.get('time_offset'))))
         as_at_date = pd.to_datetime(
-            'today', utc=True).tz_convert(tz).tz_convert(None)
+            'today', utc=True).tz_convert(tz).tz_localize(None)
         logger.info(f'Localised datetime is: {as_at_date}')
     else:
         as_at_date = request.form.get('date')
