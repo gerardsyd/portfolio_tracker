@@ -87,7 +87,7 @@ def update_pf():
             'today', utc=True).tz_convert(tz).tz_localize(None)
         logger.info(f'Localised datetime is: {as_at_date}')
     else:
-        as_at_date = request.form.get('date')
+        as_at_date = datetime.strptime(request.form.get('date'), "%Y-%m-%d")
 
     hide_zero = not(bool(request.form.get('hide_zero'))) or False
     no_update = not(bool(request.form.get('no_update'))) or False
