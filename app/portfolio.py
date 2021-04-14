@@ -111,7 +111,8 @@ class Portfolio():
         # get stock position as at date, splits and dividend information for portfolio
         prices_df = self.curr_positions(
             self.trades_df['Ticker'].unique(), as_at_date, min_days, no_update)
-        prices_df.to_pickle(self.filename)
+        self.update_datafile(prices_df.copy(deep=True))
+        # prices_df.to_pickle(self.filename)
         curr_df = self.current_prices(prices_df, as_at_date)
 
         hist_df = self.hist_positions(as_at_date, self.splits_data(
@@ -554,6 +555,26 @@ class Portfolio():
         p_hist_df['TotalGain'] = p_hist_df['UnRlGain'] + \
             p_hist_df['RlGain'] + p_hist_df['Dividends']
         return p_hist_df, self.dividends_data(prices_df), self.splits_data(prices_df)
+
+    def update_datafile(self, new_data: pd.DataFrame):
+        # set index for new data
+        new_data.set_index(['Ticker', 'Date'], inplace=True)
+        print(new_data)
+
+        # load saved data and set index
+        saved_data = pd.read_pickle(self.filename)
+        saved_data.set_index(['Ticker', 'Date'], inplace=True)
+        print(saved_data)
+
+        # combine data (updating null elements in saved data with values from new data)
+        saved_data = saved_data.combine_first(new_data)
+        print(saved_data)
+        # updates data for existing rows (e.g. when newer price data downloaded)
+        saved_data.update(new_data)
+        print(saved_data)
+        saved_data.reset_index(inplace=True)
+        print(saved_data)
+        saved_data.to_pickle(self.filename)
 
 
 if __name__ == "__main__":

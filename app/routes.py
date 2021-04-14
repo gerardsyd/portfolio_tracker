@@ -76,18 +76,8 @@ def register():
 @app.route('/update', methods=['POST'])
 @login_required
 def update_pf():
-    # get as at date from drop down. If None or left blank, gets time_offset and converts to today's date from UTC to date in local timezone
-    if request.form.get('date') == '' or request.form.get('date') == None:
-        if request.form.get('time_offset') == None:
-            tz = timezone(timedelta(minutes=0))
-        else:
-            tz = timezone(timedelta(minutes=-int(
-                request.form.get('time_offset'))))
-        as_at_date = pd.to_datetime(
-            'today', utc=True).tz_convert(tz).tz_localize(None)
-        logger.info(f'Localised datetime is: {as_at_date}')
-    else:
-        as_at_date = datetime.strptime(request.form.get('date'), "%Y-%m-%d")
+    as_at_date = get_date(request.form.get(
+        'date'), request.form.get('time_offset'))
 
     hide_zero = not(bool(request.form.get('hide_zero'))) or False
     no_update = not(bool(request.form.get('no_update'))) or False
@@ -206,12 +196,12 @@ def view_trades():
 
 @ app.route('/stock/<ticker>')
 @ login_required
-def stock(ticker):
+def stock(ticker: str):
     currency = request.args.get('currency')
-    as_at_date = datetime.strptime(request.args.get('date'), '%Y-%m-%d')
+    as_at_date = get_date(request.args.get(
+        'date'), request.form.get('time_offset'))
     logger.info(f'Loading trades from db')
     pf_trades = current_user.get_trades()
-    # pf_trades = pd.read_pickle(TRADES_FILE)
     trades = pf_trades[pf_trades['Ticker'] == ticker].to_html()
     pf = Portfolio(trades=pf_trades, currency=currency,
                    filename=DATA_FILE, names_filename=NAMES_FILE)
@@ -222,16 +212,14 @@ def stock(ticker):
     position = pio.to_html(
         position_fig, include_plotlyjs='cdn', full_html=False)
 
-    # position = web_utils.pandas_table_styler(hist_pos, neg_cols=[
-    #                                          '%LastChange', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker'], ticker_links=False, uuid='stock')
     return render_template('stock_dynamic.jinja2', title=f'Overview for {ticker}', stock_name=ticker, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades)
 
 
 @ app.route('/exportpf', methods=['GET', 'POST'])
 @ login_required
 def exportpf():
-    as_at_date = None if request.form.get(
-        'date') == '' else request.form.get('date')
+    as_at_date = get_date(request.form.get(
+        'date'), request.form.get('time_offset'))
     hide_zero = not(bool(request.form.get('hide_zero'))) or False
     no_update = not(bool(request.form.get('no_update'))) or False
     currency = request.form.get('currency') or 'AUD'
@@ -244,6 +232,28 @@ def exportpf():
     resp.headers.set("Content-Disposition",
                      "attachment", filename="pf_position.csv")
     return resp
+
+
+def get_date(date: str, offset: str):
+    """
+    Takes date and offset as string and if None or left blank, gets time_offset and converts to today's date from UTC to date in local timezone
+
+    Args:
+        date (str): date in string format
+        offset (str): timezone offset in string format
+    """
+    as_at_date = None
+    if date == '' or date == None:
+        if offset == None:
+            tz = timezone(timedelta(minutes=0))
+        else:
+            tz = timezone(timedelta(minutes=-int(offset)))
+        as_at_date = pd.to_datetime(
+            'today', utc=True).tz_convert(tz).tz_localize(None)
+        logger.info(f'Localised datetime is: {as_at_date}')
+    else:
+        as_at_date = datetime.strptime(date, "%Y-%m-%d")
+    return as_at_date
 
 
 if __name__ == '__main__':

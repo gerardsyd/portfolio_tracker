@@ -3,6 +3,7 @@ import pandas as pd
 import numpy as np
 import os
 from datetime import datetime
+import requests
 
 from binance.client import Client
 from binance.exceptions import BinanceAPIException
@@ -12,6 +13,7 @@ logger = logging.getLogger('pt_logger.Stock')
 # get binance api key and secret from environment variables
 binance_api_key = os.environ.get('BINANCE_API_KEY')
 binance_api_secret = os.environ.get('BINANCE_API_SECRET')
+nomic_api_key = os.environ.get('NOMIC_API_KEY')
 
 
 def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.datetime64, currency: str = 'AUD') -> pd.DataFrame:
@@ -102,7 +104,35 @@ def get_prices_from_API(symbol_pair: str, start_date: np.datetime64, end_date: n
         return data_df
 
 
+def get_FX_rates(from_currency: str, to_currency: str, start_date: np.datetime64, end_date: np.datetime64):
+    if to_currency == "USD":
+        return get_prices_from_nomic(from_currency, start_date, end_date)
+    if from_currency == "USD":
+        df = get_prices_from_nomic(to_currency, start_date, end_date)
+        df['Close'] = 1 / df['Close']
+        return df
+    else:
+        from_df = get_prices_from_nomic(from_currency, start_date, end_date)
+        to_df = get_prices_from_nomic(to_currency, start_date, end_date)
+        merged_df = pd.merge(left=from_df, right=to_df, on='Date', how='inner')
+        merged_df['Close'] = merged_df['Close_x'] / merged_df['Close_y']
+        merged_df.drop(["Close_x", "Close_y"], inplace=True, axis=1)
+        return merged_df
+
+
+def get_prices_from_nomic(currency: str, start_date: np.datetime64, end_date: np.datetime64):
+    start_date = start_date.isoformat("T") + "Z"
+    end_date = end_date.isoformat("T") + "Z"
+    url = f"https://api.nomics.com/v1/exchange-rates/history?key={nomic_api_key}&currency={currency}&start={start_date}&end={end_date}"
+    json = requests.get(url).content
+    df = pd.read_json(json)
+    df.rename(columns={"timestamp": "Date", "rate": "Close"}, inplace=True)
+    return df
+
+
 if __name__ == '__main__':
-    df = get_crypto_price('AUD', datetime(2019, 6, 1),
-                          datetime(2020, 8, 22), 'USDT')
+    df = get_prices_from_nomic('BTC', datetime(
+        2019, 6, 1), datetime(2020, 8, 22))
+    # df = get_crypto_price('AUD', datetime(2019, 6, 1),
+    #                       datetime(2020, 8, 22), 'USDT')
     print(df)

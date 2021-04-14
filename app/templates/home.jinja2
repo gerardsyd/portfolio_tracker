@@ -86,14 +86,99 @@
             paging: false,
             responsive: true,
             rowGroup:{
+                startRender: function (rows, group){
+                    var totalVal = rows
+                    .data()
+                    .pluck(6)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    totalVal = $.fn.dataTable.render.number(',', '.', 0, '').display( totalVal );
+
+                    var totalCost = rows
+                    .data()
+                    .pluck(11)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    totalCost = $.fn.dataTable.render.number(',', '.', 0, '').display( totalCost );
+
+                    var rlGain = rows
+                    .data()
+                    .pluck(14)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    rlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( rlGain );
+
+                    var urlGain = rows
+                    .data()
+                    .pluck(15)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    urlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( urlGain );
+
+                    var totalGain = rows
+                    .data()
+                    .pluck(16)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    totalGain = $.fn.dataTable.render.number(',', '.', 0, '').display( totalGain );
+
+                    return $('<tr style="text-align:right"/>')
+                    .append( '<td style="text-align:left" colspan="6">'+group+'</td>' )
+                    .append( '<td>'+totalVal+'</td>' )
+                    .append( '<td colspan="4"/>' )
+                    .append( '<td>'+totalCost+'</td>' )
+                    .append( '<td colspan="2"/>' )
+                    .append( '<td>'+rlGain+'</td>' )
+                    .append( '<td>'+urlGain+'</td>' )
+                    .append( '<td>'+totalGain+'</td>' )
+                    .append( '<td/>' );
+                },
                 dataSrc: 18, 
                 startClassName: 'td-left'
             },
             searching: false
         });
-    var d = new Date();
-    var n = d.getTimezoneOffset();
-    document.getElementById("time_offset").value = n;
+
+        $(document).ready(function() {
+    $('#example').DataTable( {
+        order: [[2, 'asc']],
+        rowGroup: {
+            startRender: null,
+            endRender: function ( rows, group ) {
+                var salaryAvg = rows
+                    .data()
+                    .pluck(5)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d]/g, '')*1;
+                    }, 0) / rows.count();
+                salaryAvg = $.fn.dataTable.render.number(',', '.', 0, '$').display( salaryAvg );
+ 
+                var ageAvg = rows
+                    .data()
+                    .pluck(3)
+                    .reduce( function (a, b) {
+                        return a + b*1;
+                    }, 0) / rows.count();
+ 
+                return $('<tr/>')
+                    .append( '<td colspan="3">Averages for '+group+'</td>' )
+                    .append( '<td>'+ageAvg.toFixed(0)+'</td>' )
+                    .append( '<td/>' )
+                    .append( '<td>'+salaryAvg+'</td>' );
+            },
+            dataSrc: 2
+        }
+            } );
+        } );
+
+        var d = new Date();
+        var n = d.getTimezoneOffset();
+        document.getElementById("time_offset").value = n;
     } );
     
     

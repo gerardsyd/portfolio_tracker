@@ -29,6 +29,11 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 ## Update 23 March 2021
 - Included timezone offset to get right date for update from UTC
 
+## Update 14 April 2021
+- Included sums for each group on portfolio display
+- Fixed bug where price data would get deleted when user switched
+- FX conversion across portfolio (WIP)
+
 ## Installation
 - Clone the repository and install using pipfile (if using pipenv) or requirements.txt (for other virtual environments)
 - Required ENV variables (via .env file or any other method):
@@ -42,6 +47,7 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 ## To be built / implemented
+- Monthly view of assets
 - Move portfolio actions to separate user profile page
 - Allow multiple portfolios?
 - Add support for exchange rates

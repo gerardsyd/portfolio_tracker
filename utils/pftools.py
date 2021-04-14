@@ -17,14 +17,16 @@ if __name__ == "__main__":
     import os
     curr_dir = os.getcwd()
 
-    df = pkl_to_csv(os.path.join(
-        curr_dir, 'pf_data_210331.csv'), os.path.join(
-        curr_dir, 'data/pf_data.pkl'))
+    # df = pkl_to_csv(os.path.join(
+    #     curr_dir, 'data/names_210414.csv'), os.path.join(
+    #     curr_dir, 'data/pf_names.pkl'))
+
     # df = csv_to_pkl('data/pf_data_201015.csv', 'data/pf_trades_CURR.pkl')
     # df = csv_to_pkl('data/test2.csv', 'data/pf_data.pkl')
-    print(df)
+    # print(df)
 
-    # df = pd.read_pickle('data/pf_trades.pkl')
+    df = pd.read_pickle('data/pf_trades.pkl')
+    print(df)
     # df.drop(columns=['index'], inplace=True)
     # df.reset_index(inplace=True, drop=True)
     # df.to_pickle('data/pf_trades.pkl')
