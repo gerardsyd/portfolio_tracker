@@ -1,8 +1,10 @@
+from datetime import datetime
 from flask_login import UserMixin
 import pandas as pd
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
+from utils import data
 
 
 class User(UserMixin, db.Model):
@@ -11,9 +13,13 @@ class User(UserMixin, db.Model):
     email = db.Column(db.String(120), index=True, unique=True)
     password_hash = db.Column(db.String(128))
     trades = db.relationship('Trades', backref='user', lazy='dynamic')
+    default_currency = db.Column(
+        db.String(10), index=True, nullable=False, server_default="AUD")
+    last_accessed = db.Column(db.DateTime, index=True)
 
     def __repr__(self):
-        return '<User {}>'.format(self.username)
+        # return '<User {}>'.format(self.username)
+        return f'<User {self.username} with default currency of {self.default_currency}>'
 
     def set_password(self, password):
         self.password_hash = generate_password_hash(password)
@@ -48,12 +54,25 @@ class User(UserMixin, db.Model):
         Trades.query.filter_by(user_id=self.id).delete()
         db.session.commit()
 
+    def update_last_accessed(self, date):
+        self.last_accessed = date
+        db.session.commit()
+
+    def get_stock_info(self):
+        df = pd.read_sql(Stocks.query.filter(Stocks.ticker.in_(
+            [i.ticker for i in self.trades.all()])).statement, db.engine)
+        df.rename(str.capitalize, axis=1, inplace=True)
+        return df
+
 
 class Trades(db.Model):
     id = db.Column(db.Integer, primary_key=True)
-    user_id = db.Column(db.Integer, db.ForeignKey('user.id'))
+    user_id = db.Column(db.Integer, db.ForeignKey(
+        'user.id', name='fk_trades_user_id'))
     date = db.Column(db.DateTime, index=True)
-    ticker = db.Column(db.String(20), index=True)
+    # ticker = db.Column(db.String(20), index=True, nullable=False)
+    ticker = db.Column(db.String(20), db.ForeignKey(
+        'stocks.ticker', name='fk_trades_ticker'), nullable=False)
     quantity = db.Column(db.Numeric(20, 10), index=True)
     price = db.Column(db.Numeric(20, 10), index=True)
     fees = db.Column(db.Numeric(20, 10), index=True)
@@ -61,3 +80,32 @@ class Trades(db.Model):
 
     def __repr__(self):
         return f'<{self.id}: {self.direction} trade on {self.date} for {self.quantity} of {self.ticker} at {self.price}>'
+
+
+class Stocks(db.Model):
+    ticker = db.Column(db.String(20), primary_key=True)
+    name = db.Column(db.String(60), index=True)
+    currency = db.Column(db.String(10), index=True)
+    last_updated = db.Column(db.DateTime(), index=True)
+
+    def __repr__(self):
+        return f'<{self.ticker}: {self.name} and quoted in {self.currency} and last updated on {self.last_updated}>'
+
+    def update_name(self):
+        name = data.get_name(self.ticker)
+        if name == None:
+            self.name = "NA"
+        else:
+            self.name = name[:60]
+        db.session.commit()
+
+    def update_currency(self, pf_currency):
+        self.currency = data.get_currency(self.ticker, pf_currency)
+        db.session.commit()
+
+    def update_last_updated(self, date: datetime):
+        self.last_updated = date
+        db.session.commit()
+
+    def check_stock_exists(ticker):
+        return Stocks.query.get(ticker)

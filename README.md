@@ -34,6 +34,14 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Fixed bug where price data would get deleted when user switched
 - FX conversion across portfolio (WIP)
 
+## Update 28 April 2021
+- Dividends implemented (no check to see if dividend is manually entered vs automatic capture from data sources)
+- Added tax calculation to show dividends and capital gains (avg cost method) between two periods
+- Set up names file as SQL database instead of pkl file and linked to trades database
+
+## Update 11 May 2021
+- SQL database for names and set up ability to check names and currency using various APIs
+
 ## Installation
 - Clone the repository and install using pipfile (if using pipenv) or requirements.txt (for other virtual environments)
 - Required ENV variables (via .env file or any other method):
@@ -59,3 +67,4 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - Automate entering trade data? 
 - Throw error in Portfolio if empty trades_df and info / info_date called
 - Allow deleting row in add trades section
+- Consider if Portfolio object uses direct SQL instead of pandas dataframe

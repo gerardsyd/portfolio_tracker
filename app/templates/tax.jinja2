@@ -1,0 +1,112 @@
+{% extends 'base.jinja2' %}
+{% set active_page = "utilities" %}
+
+{% block app_styles %}
+    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css"/>
+    <style>
+        table#T_taxsummary.dataTable {font-size:14px}
+        th { font-size: 14px; text-align: left}
+        tr { font-size: 14px; text-align: right}
+        table#T_taxsummary.dataTable tbody tr:hover {background-color: #dff}
+        table#T_taxsummary.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
+        .td-left {text-align: left}
+    </style>
+{% endblock app_styles %}
+
+{% block app_content %}
+<div class="container">
+    <h2>Tax report for {{ current_user.username }}</h2>
+    <label>Set Dates: </label>
+    <form action="/tax" method="post">
+    <div class="row">
+        <div class="col-sm">
+            <label>Start Date: </label><input type="date" name="start_date" id="start_date">
+        </div>
+        <div class="col-sm">
+            <label>End Date: </label><input type="date" name="end_date" id="end_date">
+        </div>
+        <div class="col-sm">
+            <input type="submit" name="action" value="Submit">
+        </div>
+    </div>
+    <div class="row">
+        <div class="col-sm"><input type="submit" name="action" value="Export to CSV"></div>
+        <input type="hidden" name="time_offset" id="time_offset" value="0">
+    </div>
+    </form>
+    <p>
+</div>
+<div class="container">
+    <div class="table-responsive">
+            {{tables}}
+    </div>
+</div>
+{% endblock %}
+
+{% block app_scripts %}
+    
+    <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
+
+    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
+    <script>
+    $(document).ready( function () {
+        var nameType = $.fn.dataTable.absoluteOrder( {
+            value: 'nan', position: 'bottom'
+        } );
+        $.fn.dataTable.enum(['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']);
+        $('#T_taxsummary').DataTable({
+            autoWidth: false,
+            columnDefs: [
+                { targets: [2,3,4,5], type: "num-fmt" },
+                { targets: [2,3,4,5], type: nameType },
+                { targets: 6, visible: false}
+            ],
+            colReorder: true,
+            fixedHeader: {
+                footer: true
+            },
+            fixedColumns: {
+                leftColumns: 2
+            },
+            orderFixed: [6, 'asc'],
+            paging: false,
+            responsive: true,
+            rowGroup:{
+                startRender: function (rows, group){
+                    var div = rows
+                    .data()
+                    .pluck(3)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    div = $.fn.dataTable.render.number(',', '.', 0, '').display( div );
+
+                    var rlGain = rows
+                    .data()
+                    .pluck(4)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.]/g, '')*1;
+                    }, 0);
+                    rlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( rlGain );
+
+                    return $('<tr style="text-align:right"/>')
+                    .append( '<td style="text-align:left" colspan="3">'+group+'</td>' )
+                    .append( '<td>'+div+'</td>' )
+                    .append( '<td>'+rlGain+'</td>' )
+                    .append( '<td/>' );
+                },
+                dataSrc: 6, 
+                startClassName: 'td-left'
+            },
+            searching: false
+        });
+
+        var d = new Date();
+        var n = d.getTimezoneOffset();
+        document.getElementById("time_offset").value = n;
+    } );
+    
+    
+    </script>
+{% endblock app_scripts %}

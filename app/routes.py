@@ -13,14 +13,13 @@ from werkzeug.urls import url_parse
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm
-from app.models import User, Trades
+from app.models import Stocks, User, Trades
 from app.portfolio import Portfolio
 from utils import web_utils
 
 logger = logging.getLogger('pt_logger')
 
 # app = Flask(__name__)
-TRADES_FILE = 'data/pf_trades.pkl'
 DATA_FILE = 'data/pf_data.pkl'
 NAMES_FILE = 'data/pf_names.pkl'
 
@@ -29,6 +28,7 @@ NAMES_FILE = 'data/pf_names.pkl'
 @app.route('/index')
 @login_required
 def index():
+    current_user.update_last_accessed(datetime.utcnow())
     return update_pf()
     # return render_template('home.jinja2', title="Portfolio Tracker: Home")
 
@@ -87,10 +87,12 @@ def update_pf():
     if pf_trades.empty:
         flash('Portfolio is empty. Please add some trades', 'error')
         return render_template('home.jinja2', title="Overview")
+    stocks_df = current_user.get_stock_info()
     pf = Portfolio(trades=pf_trades, currency=currency,
-                   filename=DATA_FILE, names_filename=NAMES_FILE)
+                   filename=DATA_FILE, stocks_df=stocks_df)
     start = datetime.now()
-    df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
+    df = pf.info_date(as_at_date=as_at_date,
+                      hide_zero_pos=hide_zero, no_update=no_update)
     logger.info(f'info_date took {(datetime.now()-start)} to run')
 
     start = datetime.now()
@@ -145,6 +147,15 @@ def save_pf():
 def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
+        for t in trades_df['Ticker'].unique():
+            if Stocks.check_stock_exists(t) == None:
+                stock = Stocks(ticker=t)
+                stock.update_name()
+                stock.update_currency(
+                    pf_currency=current_user.default_currency)
+                stock.update_last_updated(None)
+                db.session.add(stock)
+                db.session.commit()
         current_user.add_trades(trades_df)
         flash('Trades added successfully', 'info')
         return render_template('home.jinja2', title='Overview')
@@ -159,13 +170,6 @@ def view_trades():
         if df.empty:
             flash('No portfolio trades founds. Please load file or add trades', 'error')
             return render_template('home.jinja2', title='Overview')
-
-        # if path.isfile(TRADES_FILE):
-        #     logger.info(f'{TRADES_FILE} exists, loading')
-        #     df = pd.read_pickle(TRADES_FILE)
-        # else:
-        #     flash('No portfolio trades founds. Please load file or add trades', 'error')
-        #     return render_template('home.jinja2', title='Overview')
 
         # format date to allow render in date input field
         df['Date'] = df['Date'].dt.strftime('%Y-%m-%d')
@@ -202,17 +206,27 @@ def stock(ticker: str):
         'date'), request.form.get('time_offset'))
     logger.info(f'Loading trades from db')
     pf_trades = current_user.get_trades()
+    start_date = pf_trades[pf_trades['Ticker'] == ticker]['Date'].min()
     trades = pf_trades[pf_trades['Ticker'] == ticker].to_html()
     pf = Portfolio(trades=pf_trades, currency=currency,
                    filename=DATA_FILE, names_filename=NAMES_FILE)
-    hist_pos, divs, splits = pf.price_history(
-        ticker=ticker, as_at_date=as_at_date, period='D', no_update=False)
+    hist_pos, divs, splits = pf.price_history(start_date=start_date,
+                                              ticker=ticker, as_at_date=as_at_date, period='D', no_update=False)
     position_fig = web_utils.create_fig(hist_pos, 'Date', ['CurrVal', 'TotalGain'], [
         'RlGain', 'UnRlGain', 'Dividends', 'Quantity'], 600)
     position = pio.to_html(
         position_fig, include_plotlyjs='cdn', full_html=False)
 
     return render_template('stock_dynamic.jinja2', title=f'Overview for {ticker}', stock_name=ticker, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades)
+
+
+@app.route('/pfactions', methods=['GET', 'POST'])
+@login_required
+def pfactions():
+    if request.form["action"] == "Export to CSV":
+        return exportpf()
+    else:
+        return update_pf()
 
 
 @ app.route('/exportpf', methods=['GET', 'POST'])
@@ -227,11 +241,75 @@ def exportpf():
     pf_trades = current_user.get_trades()
     pf = Portfolio(trades=pf_trades, currency=currency,
                    filename=DATA_FILE, names_filename=NAMES_FILE)
-    df = pf.info_date(as_at_date, hide_zero_pos=hide_zero, no_update=no_update)
+    df = pf.info_date(as_at_date=as_at_date,
+                      hide_zero_pos=hide_zero, no_update=no_update)
     resp = make_response(df.to_csv(index=False))
     resp.headers.set("Content-Disposition",
                      "attachment", filename="pf_position.csv")
     return resp
+
+
+@app.route('/tax', methods=['GET', 'POST'])
+@login_required
+def tax():
+    title = 'Tax Summary'
+    if request.method == 'POST':
+        if (request.form.get(
+                'start_date') == '') or (request.form.get(
+                'end_date') == ''):
+            flash('Please insert dates and submit query', 'info')
+            return render_template('tax.jinja2', title=title)
+        if request.form["action"] == "Export to CSV":
+            return exportpftax(title)
+        else:
+            return taxoutput(title)
+    else:
+        flash('Please insert dates and submit query', 'info')
+        return render_template('tax.jinja2', title=title)
+
+
+def exportpftax(title: str):
+    df = get_tax_df(title)
+    resp = make_response(df.to_csv(index=False))
+    resp.headers.set("Content-Disposition",
+                     "attachment", filename="pf_position.csv")
+    return resp
+
+
+def taxoutput(title: str):
+    df = get_tax_df(title)
+    df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
+    df_html = web_utils.pandas_table_styler(
+        df, neg_cols=['RlGain'], left_align_cols=['Ticker', 'Name'], ticker_links=False, uuid='taxsummary')
+    df_html = web_utils.add_footer(df_html)
+    return render_template('tax.jinja2', tables=df_html, title=title)
+
+
+def get_tax_df(title: str):
+    start_date = get_date(request.form.get(
+        'start_date'), None)
+    end_date = get_date(request.form.get(
+        'end_date'), None)
+
+    hide_zero = False
+    no_update = True
+    currency = 'AUD'
+
+    pf_trades = current_user.get_trades()
+    if pf_trades.empty:
+        flash('Portfolio is empty. Please add some trades', 'error')
+        return render_template('home.jinja2', title="Overview")
+
+    pf = Portfolio(trades=pf_trades, currency=currency,
+                   filename=DATA_FILE, names_filename=NAMES_FILE)
+    df = pf.info_date(start_date=start_date, as_at_date=end_date,
+                      hide_zero_pos=hide_zero, no_update=no_update)
+
+    # restrict output to stocks where there was a tax event in the period (i.e. dividends or capital gains)
+    df = df[(df['RlGain'] != 0) | (df['Dividends'] != 0)].copy()
+    df = df[['Ticker', 'Name', 'CurrVal', 'Dividends', 'RlGain', 'Date', 'Type']]
+
+    return df
 
 
 def get_date(date: str, offset: str):

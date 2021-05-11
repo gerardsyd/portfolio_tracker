@@ -1,7 +1,7 @@
 from datetime import datetime
 import logging
 from multiprocessing.pool import ThreadPool
-from typing import List
+from typing import List, Tuple
 
 import investpy
 import pandas as pd
@@ -29,12 +29,7 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
     """
 
     logger.debug(f'-------  Ticker is {ticker}  -------')
-    try:
-        raw_ticker = ticker.split('.')[0]
-        ticker_type = ticker.split('.')[1]
-    except:
-        raw_ticker = None
-        ticker_type = None
+    raw_ticker, ticker_type = split_ticker(ticker=ticker)
 
     if ticker_type == 'LOAN':
         dl_data = get_loan_data(start_date, end_date)
@@ -207,20 +202,35 @@ def get_name(ticker: str) -> str:
     """
 
     logger.debug(f'Getting name for {ticker}')
-    try:
-        stock = yf.Ticker(ticker)
+    raw_ticker, ticker_type = split_ticker(ticker=ticker)
+    logger.debug([raw_ticker, ticker_type])
+
+    if ticker_type == 'STOCK':
         try:
-            name = stock.info['longName']
-        except (IndexError, KeyError) as e:
-            print(f'-------  Ticker {ticker} not found -------')
+            stock = yf.Ticker(ticker)
+            try:
+                name = stock.info['longName']
+            except (IndexError, KeyError) as e:
+                logger.debug(f'-------  Ticker {ticker} not found -------')
+                name = "NA"
+        except (ValueError, AttributeError):
+            logger.debug(f'-------  Ticker name {ticker} not found -------')
             name = "NA"
-    except (ValueError, AttributeError):
-        logger.debug(f'-------  Ticker name {ticker} not found -------')
-        name = "NA"
+    elif ticker_type == 'FUND':
+        try:
+            fund_search = investpy.search_funds(
+                by='isin', value=raw_ticker)
+            name = fund_search.at[0, 'name']
+        except (RuntimeError, ValueError):
+            name = "NA"
+    elif ticker_type == 'CRYPTO':
+        name = raw_ticker
+    else:
+        name = raw_ticker
     return name
 
 
-def get_currency(ticker: str) -> str:
+def get_currency(ticker: str, pf_currency: str) -> str:
     """
     Gets quoted currency of ticker
 
@@ -232,26 +242,46 @@ def get_currency(ticker: str) -> str:
     """
 
     logger.debug(f'Getting quoted currency for {ticker}')
-    try:
-        stock = yf.Ticker(ticker)
+    raw_ticker, ticker_type = split_ticker(ticker=ticker)
+
+    if ticker_type == 'STOCK':
         try:
-            currency = stock.info['currency']
-        except (IndexError, KeyError) as e:
-            logger.debug(f'-------  Currency for {ticker} not found -------')
+            stock = yf.Ticker(ticker)
+            try:
+                currency = stock.info['currency']
+            except (IndexError, KeyError) as e:
+                logger.debug(
+                    f'-------  Currency for {ticker} not found -------')
+                currency = "NA"
+        except (ValueError, AttributeError):
+            logger.debug(
+                f'-------  Ticker {ticker} not found (currency) -------')
             currency = "NA"
-    except (ValueError, AttributeError):
-        logger.debug(f'-------  Ticker {ticker} not found (currency) -------')
-        currency = "NA"
+    elif ticker_type == 'FUND':
+        try:
+            df = investpy.search_funds(by='isin', value=raw_ticker)
+            currency = df.at[0, 'currency']
+        except:
+            currency = "NA"
+    elif ticker_type == 'CRYPTO':
+        currency = raw_ticker
+    else:
+        currency = pf_currency
     return currency
 
 
-def get_ticker_type(ticker: str) -> str:
-    try:
-        ticker_type = ticker.split('.')[1]
-    except:
-        ticker_type = None  # if no ticker, then will be US stock
-
+def get_ticker_type(ticker_type: str) -> str:
     if ticker_type not in ['LOAN', 'CASH', 'FUND', 'CRYPTO']:
         return 'STOCK'
     else:
         return ticker_type
+
+
+def split_ticker(ticker: str) -> Tuple[str, str]:
+    if len(ticker.split('.')) < 2:
+        ticker_type = None
+    else:
+        ticker_type = ticker.split('.')[1]
+    raw_ticker = ticker.split('.')[0]
+    ticker_type = get_ticker_type(ticker_type)
+    return raw_ticker, ticker_type

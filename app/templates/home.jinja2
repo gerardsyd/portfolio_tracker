@@ -17,10 +17,10 @@
 <div class="container">
     <h2>Portfolio for {{ current_user.username }}</h2>
     <label> Portfolio actions:</label>
+    <form action="/pfactions" method="post">
     <div class="row">
-        <div class="col-sm"><form action="/exportpf" method="post"><input type="submit" value="Export to CSV"></form></div>
+        <div class="col-sm"><input type="submit" name="action" value="Export to CSV"></div>
     </div>
-    <form action="/update" method="post">
         <div class="row">
             <div class="col-sm">
                 <input type="date" name="date" id="date">
@@ -43,7 +43,7 @@
                 </select>
             </div>
             <div class="col-sm">
-                <input type="submit" value="Refresh">
+                <input type="submit" name="action" value="Refresh">
             </div>
         </div>
     </form>
@@ -143,38 +143,6 @@
             },
             searching: false
         });
-
-        $(document).ready(function() {
-    $('#example').DataTable( {
-        order: [[2, 'asc']],
-        rowGroup: {
-            startRender: null,
-            endRender: function ( rows, group ) {
-                var salaryAvg = rows
-                    .data()
-                    .pluck(5)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d]/g, '')*1;
-                    }, 0) / rows.count();
-                salaryAvg = $.fn.dataTable.render.number(',', '.', 0, '$').display( salaryAvg );
- 
-                var ageAvg = rows
-                    .data()
-                    .pluck(3)
-                    .reduce( function (a, b) {
-                        return a + b*1;
-                    }, 0) / rows.count();
- 
-                return $('<tr/>')
-                    .append( '<td colspan="3">Averages for '+group+'</td>' )
-                    .append( '<td>'+ageAvg.toFixed(0)+'</td>' )
-                    .append( '<td/>' )
-                    .append( '<td>'+salaryAvg+'</td>' );
-            },
-            dataSrc: 2
-        }
-            } );
-        } );
 
         var d = new Date();
         var n = d.getTimezoneOffset();

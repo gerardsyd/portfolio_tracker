@@ -20,12 +20,13 @@ class Portfolio():
 
     TYPE_CATEGORIES = ['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']
     TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction']
+    SDF_COLUMNS = ['Ticker', 'Name', 'Currency', 'Last_updated']
     INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
                     'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date', 'Type']
     DEFAULT_FILE = 'data/data.pkl'
     DEFAULT_NAME_FILE = DEFAULT_FILE.split(".pkl")[0] + "_names.pkl"
 
-    def __init__(self, trades: pd.DataFrame = None, currency: str = 'AUD', filename: str = DEFAULT_FILE, names_filename: str = DEFAULT_NAME_FILE):
+    def __init__(self, trades: pd.DataFrame = None, currency: str = 'AUD', filename: str = DEFAULT_FILE, stocks_df: pd.DataFrame = None):
         """
         Creates a new portfolio. Can accept a dataframe of trades
 
@@ -33,8 +34,10 @@ class Portfolio():
         Args:
             trades (pd.DataFrame, optional): Dataframe containing stock trades with the following columns:
             [Date, Ticker, Quantity, Price, Fees, Direction]. Defaults to None.
+            currency(str, optional): Base currency for Portfolio object
             filename (str, optional): File name and location to save pricing data. Defaults to 'data/data.pkl'.
-            names_filename (str, optional): File name and location to save ticker / name data. Defaults to 'data/data_names.pkl'.
+            stocks_df (str, optional): Dataframe with columns as follows:
+            [Ticker, Name, Currency, Last Updated]
 
         Raises:
             ValueError: Raised if columns of dataframe passed in do not match required columns
@@ -45,7 +48,11 @@ class Portfolio():
         if trades is not None:
             self.add_trades(trades)
         self.filename = filename
-        self.name_file = names_filename
+        if all(stocks_df.columns == self.SDF_COLUMNS):
+            self.stocks_df = stocks_df
+        else:
+            raise ValueError(
+                f'Stocks dataframe has incorrect columns. Please make sure dataframe has following columns in order: {self.SDF_COLUMNS}')
         self.currency = currency
 
     def add_trades(self, trades: pd.DataFrame):
@@ -53,7 +60,7 @@ class Portfolio():
         Adds dataframe of trades to portfolio
 
         Arguments:
-            trade_df {pd.DataFrame} -- Dataframe containing stock trades with
+            trade_df {pd.DataFrame} - - Dataframe containing stock trades with
             the following columns: [Date, Ticker, Quantity, Price, Fees, Direction]
 
         Raises:
@@ -71,7 +78,7 @@ class Portfolio():
             self.trades_df.sort_values('Date', inplace=True)
         else:
             raise ValueError(
-                f'Dataframe has incorrect columns. Please make sure dataframe has following columns in order: {self.TD_COLUMNS}')
+                f'Trades dataframe has incorrect columns. Please make sure dataframe has following columns in order: {self.TD_COLUMNS}')
 
     @property
     def info(self) -> pd.DataFrame:
@@ -81,26 +88,30 @@ class Portfolio():
         Returns:
             Dataframe containing following information for each stock held in portfolio
 
-        ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange','$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
+        ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
                     'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
         """
         return self.info_date()
 
-    def info_date(self, as_at_date: datetime = None, min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
+    def info_date(self, start_date: datetime = None, as_at_date: datetime = None, min_days: int = -1, hide_zero_pos: bool = False, no_update: bool = False) -> pd.DataFrame:
         """
         Updates portfolio and returns portfolio dataframe as at a specified date (or as at today if no date provided)
 
         Args:
-            as_at_date (str, optional): String representation of date in '%Y-%m-%d' format. Defaults to None.
-            min_days (int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data. Defaults to -1.
-            hide_zero_pos (bool, optional): Hide nil stock positions. Defaults to False.
-            no_update (bool, optional): If True, do not update prices. Defaults to False.
+            start_date(datetime, optional): Datetime for the starting date of trades within portfolio. Defaults to None.
+            as_at_date(datetime, optional): Datetime for the last trade date of trades within portfolio. Defaults to None.
+            min_days(int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data. Defaults to - 1.
+            hide_zero_pos(bool, optional): Hide nil stock positions. Defaults to False.
+            no_update(bool, optional): If True, do not update prices. Defaults to False.
 
         Returns:
             Dataframe: Portfolio information as at specified date containing following information for each stock held in portfolio
             ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
             'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
         """
+
+        if start_date == None:
+            start_date = self.trades_df['Date'].min()
 
         if as_at_date == None:
             as_at_date = pd.to_datetime('today')
@@ -115,8 +126,8 @@ class Portfolio():
         # prices_df.to_pickle(self.filename)
         curr_df = self.current_prices(prices_df, as_at_date)
 
-        hist_df = self.hist_positions(as_at_date, self.splits_data(
-            prices_df), self.dividends_data(prices_df))
+        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, split_df=self.splits_data(
+            prices_df), div_df=self.dividends_data(prices_df))
 
         # calculate IRR and save in DF
         irr_df = self.calc_IRR(hist_df[['Date', 'Ticker', 'CF', 'CumQuan']].copy(), curr_df[[
@@ -136,7 +147,7 @@ class Portfolio():
         # Calculate total cost of each stock in portfolio
         hist_df['Cost'] = hist_df.Quantity * hist_df.AvgCost
 
-        # merge hist_df, curr_df and irr_df
+        # merge hist_df, curr_df and irr_df 
         info_df = hist_df.merge(curr_df, on='Ticker', how='left')
         info_df.sort_values('Ticker', inplace=True)
         info_df = self._add_total_row(
@@ -164,13 +175,12 @@ class Portfolio():
             info_df['RlGain'] + info_df['Dividends']
         info_df['%UnRlGain'] = info_df['UnRlGain'] / -info_df['Cost']
 
-        # get full names of stock from ticker
-        info_df.loc[0:tot_index - 1,
-                    'Name'] = self.stock_names(info_df.loc[0:tot_index - 1, 'Ticker'])
-
-        # get type of stock from ticker
-        info_df['Type'] = pd.Categorical(info_df['Ticker'].apply(
-            data.get_ticker_type), self.TYPE_CATEGORIES)
+        # get type of stock from ticker. Add names / date last accessed etc to info_df
+        info_df = pd.merge(
+            info_df, self.stocks_df, on='Ticker', sort=False, how='left')
+        info_df['Raw'], info_df['Type'] = zip(*info_df['Ticker'].apply(
+            data.split_ticker))
+        info_df['Type'] = pd.Categorical(info_df['Type'], self.TYPE_CATEGORIES)
 
         # set up column in order of INFO_COLUMNS
         info_df = info_df[self.INFO_COLUMNS]
@@ -181,9 +191,9 @@ class Portfolio():
         Creates a total row at the end of given dataframe with totals for specified list of columns
 
         Args:
-            df (pd.DataFrame): dataframe on which to provide totals row
-            index (str): Index in string format. Total row will have index as 'Total'
-            list_cols (List): List of columns for which totals need to be calculated
+            df(pd.DataFrame): dataframe on which to provide totals row
+            index(str): Index in string format. Total row will have index as 'Total'
+            list_cols(List): List of columns for which totals need to be calculated
 
         Returns:
             pd.DataFrame: Returns df with a total row with totals for specified list_cols and 'Total' as index
@@ -194,14 +204,16 @@ class Portfolio():
         df.at['Total', index] = 'Total'
         return df
 
-    def hist_positions(self, as_at_date: datetime, split_df: pd.DataFrame, div_df: pd.DataFrame, tickers: List = None) -> pd.DataFrame:
+    def hist_positions(self, start_date: datetime, as_at_date: datetime, split_df: pd.DataFrame, div_df: pd.DataFrame, tickers: List = None) -> pd.DataFrame:
         """
-        Calculate historical positions for all stocks in Portfolio object (based on trades_df) as at given date
+        Calculate historical positions for all stocks in Portfolio object(based on trades_df) as at given date
 
         Args:
-            as_at_date (datetime): Date as at which to calculate the position of portfolio
-            split_df (pd.DataFrame): Dataframe containing split data for stocks in portfolio
-            div_df (pd.DataFrame): Dataframe containing dividend data for stocks in portfolio
+            start_date(datetime): Date as at which to calculate limit capital gains and dividends calculations(i.e. will return capital gains and dividends between start_date and as_at_date)
+            as_at_date(datetime): Date as at which to calculate the position of portfolio
+            split_df(pd.DataFrame): Dataframe containing split data for stocks in portfolio
+            div_df(pd.DataFrame): Dataframe containing dividend data for stocks in portfolio
+            tickers(List): List of tickers for which to return historic positions
 
         Returns:
             pd.DataFrame: Dataframe containing following information for each stock held in portfolio
@@ -246,22 +258,25 @@ class Portfolio():
 
         # add dividend information
         for ticker in hist_pos['Ticker'].unique():
-            dividends = div_df[div_df['Ticker'] == ticker].copy()
+            dividends = div_df[(div_df['Ticker'] == ticker)
+                               & (div_df['Date'] >= start_date) & (div_df['Date'] <= as_at_date)].copy()
+
             if not dividends.empty:
                 # add dividend info if shares held when dividends paid
                 for _, row in dividends.iterrows():
                     try:
                         dt_div = hist_pos[(hist_pos['Date'] <= row['Date']) & (
                             hist_pos['Ticker'] == ticker)]['Date'].tail(1).index
-                        div_qty = hist_pos.loc[dt_div]['CumQuan']
+                        div_qty = hist_pos.loc[dt_div]['CumQuan'].values[0]
                         # only add dividend if more than 0 shares held
                         if div_qty != 0:
                             hist_pos = hist_pos.append(pd.DataFrame([[row['Date'], ticker, div_qty,
                                                                       row['Dividends'], 0, 'Div', (div_qty * row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
                             hist_pos.sort_values(
                                 ['Ticker', 'Date'], inplace=True)
-                    except ValueError:
+                    except (ValueError, IndexError):
                         pass  # do nothing if no shares are held during dividend period
+
         logger.info(f'add divs took {(datetime.now()-start)} to run')
         start = datetime.now()
 
@@ -284,7 +299,7 @@ class Portfolio():
             hist_pos['grouping'] == 0, hist_pos['AvgCostRaw'], hist_pos['AvgCostAdj'])
 
         hist_pos['RlGain'] = np.where(
-            hist_pos.Direction == 'Sell', hist_pos.CF + (hist_pos.AvgCost * hist_pos.Quantity), 0)
+            ((hist_pos.Direction == 'Sell') & (hist_pos.Date >= start_date)), hist_pos.CF + (hist_pos.AvgCost * hist_pos.Quantity), 0)
         hist_pos['Dividends'] = np.where(
             hist_pos.Direction == 'Div', hist_pos.CF, 0)
         hist_pos['CumDiv'] = hist_pos.groupby('Ticker')['Dividends'].cumsum()
@@ -293,7 +308,7 @@ class Portfolio():
 
         return hist_pos
 
-    @staticmethod
+    @ staticmethod
     def calc_avg_price(df: pd.DataFrame) -> pd.DataFrame:
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(
             0)  # create group for each group of shares bought / sold
@@ -305,13 +320,13 @@ class Portfolio():
 
     def curr_positions(self, tickers: List, as_at_date: datetime, min_days: int, no_update: bool = False) -> pd.DataFrame:
         """
-        Calculate current position for all stocks in Portfolio object (based on trades_df) as at given date
+        Calculate current position for all stocks in Portfolio object(based on trades_df) as at given date
 
         Args:
-            tickers (List): List of tickers in Portfolio
-            as_at_date (datetime): Date as at  which to calculate portfolio position
-            min_days (int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data.
-            no_update (bool, optional): Where price data file exists and set to True, will not update prices. Defaults to False.
+            tickers(List): List of tickers in Portfolio
+            as_at_date(datetime): Date as at  which to calculate portfolio position
+            min_days(int, optional): Checks saved pickl file with price data and if price data was updated within min_days, then will not update data.
+            no_update(bool, optional): Where price data file exists and set to True, will not update prices. Defaults to False.
 
         Returns:
             pd.DataFrame: dataframe with full history of current prices and value of stocks including dividends and splits
@@ -405,8 +420,8 @@ class Portfolio():
         Calculates IRR given two dataframes containing historical trades / cash flows and current position / value of stocks
 
         Args:
-            hist_pos (pd.DataFrame): Dataframe containing historical trades. Should have ['Ticker', 'Date', 'CF']. CF should be cash flow where negative represents an outlay and positive an inflow
-            curr_p (pd.DataFrame): Dataframe with current position by ticker. Should have ['Ticker, 'Date', 'Close'] where Close represents close price as at the date for relevant ticker
+            hist_pos(pd.DataFrame): Dataframe containing historical trades. Should have['Ticker', 'Date', 'CF']. CF should be cash flow where negative represents an outlay and positive an inflow
+            curr_p(pd.DataFrame): Dataframe with current position by ticker. Should have['Ticker, 'Date', 'Close'] where Close represents close price as at the date for relevant ticker
 
         Returns:
             pd.DataFrame: Returns Dataframe with ticker and IRRs for each stock held
@@ -455,7 +470,8 @@ class Portfolio():
         # return DF with ticker and IRR
         return IRR_df
 
-    def stock_names(self, tickers):
+    def stock_info(self, tickers):
+
         # load pickle with names. If does not exist, create new dataframe
         if path.isfile(self.name_file):
             name_df = pd.read_pickle(self.name_file)
@@ -511,10 +527,10 @@ class Portfolio():
         div_df = div_df[div_df['Dividends'] != 0.0]
         return div_df
 
-    def price_history(self, ticker: str, as_at_date: datetime, period: str, no_update: bool = False) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+    def price_history(self, ticker: str, start_date: datetime, as_at_date: datetime, period: str, no_update: bool = False) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
         prices_df = self.curr_positions([ticker], as_at_date, -1, no_update)
-        hist_df = self.hist_positions(as_at_date, self.splits_data(
-            prices_df), self.dividends_data(prices_df), [ticker])
+        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, split_df=self.splits_data(
+            prices_df), div_df=self.dividends_data(prices_df), tickers=[ticker])
         prices_df = prices_df[prices_df['Date'] >= hist_df['Date'].min()]
         if period == 'A':
             p_hist_df = prices_df.groupby(
@@ -559,21 +575,16 @@ class Portfolio():
     def update_datafile(self, new_data: pd.DataFrame):
         # set index for new data
         new_data.set_index(['Ticker', 'Date'], inplace=True)
-        print(new_data)
 
         # load saved data and set index
         saved_data = pd.read_pickle(self.filename)
         saved_data.set_index(['Ticker', 'Date'], inplace=True)
-        print(saved_data)
 
         # combine data (updating null elements in saved data with values from new data)
         saved_data = saved_data.combine_first(new_data)
-        print(saved_data)
         # updates data for existing rows (e.g. when newer price data downloaded)
         saved_data.update(new_data)
-        print(saved_data)
         saved_data.reset_index(inplace=True)
-        print(saved_data)
         saved_data.to_pickle(self.filename)
 
 
