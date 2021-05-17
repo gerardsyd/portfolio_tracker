@@ -21,7 +21,6 @@ logger = logging.getLogger('pt_logger')
 
 # app = Flask(__name__)
 DATA_FILE = 'data/pf_data.pkl'
-NAMES_FILE = 'data/pf_names.pkl'
 
 
 @app.route('/')
@@ -208,8 +207,9 @@ def stock(ticker: str):
     pf_trades = current_user.get_trades()
     start_date = pf_trades[pf_trades['Ticker'] == ticker]['Date'].min()
     trades = pf_trades[pf_trades['Ticker'] == ticker].to_html()
+    stocks_df = current_user.get_stock_info()
     pf = Portfolio(trades=pf_trades, currency=currency,
-                   filename=DATA_FILE, names_filename=NAMES_FILE)
+                   filename=DATA_FILE, stocks_df=stocks_df)
     hist_pos, divs, splits = pf.price_history(start_date=start_date,
                                               ticker=ticker, as_at_date=as_at_date, period='D', no_update=False)
     position_fig = web_utils.create_fig(hist_pos, 'Date', ['CurrVal', 'TotalGain'], [
@@ -239,8 +239,9 @@ def exportpf():
     currency = request.form.get('currency') or 'AUD'
 
     pf_trades = current_user.get_trades()
+    stocks_df = current_user.get_stock_info()
     pf = Portfolio(trades=pf_trades, currency=currency,
-                   filename=DATA_FILE, names_filename=NAMES_FILE)
+                   filename=DATA_FILE, stocks_df=stocks_df)
     df = pf.info_date(as_at_date=as_at_date,
                       hide_zero_pos=hide_zero, no_update=no_update)
     resp = make_response(df.to_csv(index=False))
@@ -300,8 +301,9 @@ def get_tax_df(title: str):
         flash('Portfolio is empty. Please add some trades', 'error')
         return render_template('home.jinja2', title="Overview")
 
+    stocks_df = current_user.get_stock_info()
     pf = Portfolio(trades=pf_trades, currency=currency,
-                   filename=DATA_FILE, names_filename=NAMES_FILE)
+                   filename=DATA_FILE, stocks_df=stocks_df)
     df = pf.info_date(start_date=start_date, as_at_date=end_date,
                       hide_zero_pos=hide_zero, no_update=no_update)
 
