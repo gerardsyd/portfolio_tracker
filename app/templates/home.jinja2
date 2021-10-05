@@ -87,11 +87,19 @@
             responsive: true,
             rowGroup:{
                 startRender: function (rows, group){
+                    var totalLastChange = rows
+                    .data()
+                    .pluck(5)
+                    .reduce( function (a, b) {
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
+                    }, 0);
+                    totalLastChange = $.fn.dataTable.render.number(',', '.', 0, '').display( totalLastChange );
+
                     var totalVal = rows
                     .data()
                     .pluck(6)
                     .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.]/g, '')*1;
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
                     }, 0);
                     totalVal = $.fn.dataTable.render.number(',', '.', 0, '').display( totalVal );
 
@@ -99,7 +107,7 @@
                     .data()
                     .pluck(11)
                     .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.]/g, '')*1;
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
                     }, 0);
                     totalCost = $.fn.dataTable.render.number(',', '.', 0, '').display( totalCost );
 
@@ -107,7 +115,7 @@
                     .data()
                     .pluck(14)
                     .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.]/g, '')*1;
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
                     }, 0);
                     rlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( rlGain );
 
@@ -115,7 +123,7 @@
                     .data()
                     .pluck(15)
                     .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.]/g, '')*1;
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
                     }, 0);
                     urlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( urlGain );
 
@@ -123,12 +131,13 @@
                     .data()
                     .pluck(16)
                     .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.]/g, '')*1;
+                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
                     }, 0);
                     totalGain = $.fn.dataTable.render.number(',', '.', 0, '').display( totalGain );
 
                     return $('<tr style="text-align:right"/>')
-                    .append( '<td style="text-align:left" colspan="6">'+group+'</td>' )
+                    .append( '<td style="text-align:left" colspan="5">'+group+'</td>' )
+                    .append( '<td>'+totalLastChange+'</td>' )
                     .append( '<td>'+totalVal+'</td>' )
                     .append( '<td colspan="4"/>' )
                     .append( '<td>'+totalCost+'</td>' )
