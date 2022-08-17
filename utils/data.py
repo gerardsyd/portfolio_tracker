@@ -4,6 +4,7 @@ from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
 
 import investpy
+from json.decoder import JSONDecodeError
 import pandas as pd
 import numpy as np
 import yfinance as yf
@@ -50,7 +51,7 @@ def get_price_data_ticker(ticker: str, start_date: np.datetime64, end_date: np.d
         dl_data = pd.DataFrame()
         logger.debug(
             f'-------  No data found for ticker: {ticker} -------')
-
+    # print(dl_data)
     return dl_data
 
 
@@ -186,6 +187,11 @@ def get_yf_price(ticker: str, start_date: np.datetime64, end_date: np.datetime64
     except ConnectionError:
         logger.debug(
             f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
+        df = None
+    except JSONDecodeError as e:
+        logger.debug(
+            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
+        logger.debug(e)
         df = None
     return df
 
