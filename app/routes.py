@@ -78,8 +78,8 @@ def update_pf():
     as_at_date = get_date(request.form.get(
         'date'), request.form.get('time_offset'))
 
-    hide_zero = not(bool(request.form.get('hide_zero'))) or False
-    no_update = not(bool(request.form.get('no_update'))) or False
+    hide_zero = not (bool(request.form.get('hide_zero'))) or False
+    no_update = not (bool(request.form.get('no_update'))) or False
     currency = request.form.get('currency') or 'AUD'
 
     pf_trades = current_user.get_trades()
@@ -95,7 +95,9 @@ def update_pf():
     logger.info(f'info_date took {(datetime.now()-start)} to run')
 
     start = datetime.now()
-    df.loc[df['IRR'] > 10 ^ 6, 'IRR'] = 'NA'
+    # removes any IRR with very large numbers and sets to None for display purposes
+    df.loc[df['IRR'] > 10 ^ 6, 'IRR'] = None
+
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
@@ -235,8 +237,8 @@ def pfactions():
 def exportpf():
     as_at_date = get_date(request.form.get(
         'date'), request.form.get('time_offset'))
-    hide_zero = not(bool(request.form.get('hide_zero'))) or False
-    no_update = not(bool(request.form.get('no_update'))) or False
+    hide_zero = not (bool(request.form.get('hide_zero'))) or False
+    no_update = not (bool(request.form.get('no_update'))) or False
     currency = request.form.get('currency') or 'AUD'
 
     pf_trades = current_user.get_trades()

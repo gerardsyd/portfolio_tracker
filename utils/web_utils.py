@@ -2,6 +2,7 @@ from typing import List
 import re
 
 from flask import request
+import logging
 import numpy as np
 import pandas as pd
 import plotly.express as px
@@ -16,6 +17,8 @@ PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2
                   'LastPrice': '{:,.2f}', 'CurrVal': '{:,.2f}', 'AvgCost': '{:,.2f}', 'Cost': '{:,.2f}', 'RlGain': '{:,.2f}', 'UnRlGain': '{:,.2f}',
                   'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}'}
 pio.templates.default = "plotly_white"
+
+logger = logging.getLogger('pt_logger.web_utils')
 
 
 def add_footer(html: str):
