@@ -7,7 +7,6 @@ import investpy
 import pandas as pd
 import numpy as np
 import yfinance as yf
-from yfinance import ticker
 
 from utils.crypto import get_crypto_price
 
@@ -177,6 +176,7 @@ def get_yf_price(ticker: str, start_date: np.datetime64, end_date: np.datetime64
     try:
         df = yf.Ticker(ticker).history(
             start=start_date, end=end_date, auto_adjust=False, rounding=False, debug=False)
+        df = df.tz_localize(None)  # remove TZ aware from downloaded data
     except KeyError:
         df = None
     except RuntimeError:
@@ -285,3 +285,11 @@ def split_ticker(ticker: str) -> Tuple[str, str]:
     raw_ticker = ticker.split('.')[0]
     ticker_type = get_ticker_type(ticker_type)
     return raw_ticker, ticker_type
+
+
+def get_currency_data(ticker: List) -> List:
+    pass
+
+
+if __name__ == '__main__':
+    print(get_name('GMVD'))

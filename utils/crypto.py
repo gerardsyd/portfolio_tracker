@@ -131,7 +131,7 @@ def get_prices_from_nomic(currency: str, start_date: np.datetime64, end_date: np
 
 
 if __name__ == '__main__':
-    df = get_prices_from_nomic('BTC', datetime(
+    df = get_FX_rates('XRP', 'USD', datetime(
         2019, 6, 1), datetime(2020, 8, 22))
     # df = get_crypto_price('AUD', datetime(2019, 6, 1),
     #                       datetime(2020, 8, 22), 'USDT')

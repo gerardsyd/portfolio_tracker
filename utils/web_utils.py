@@ -49,6 +49,7 @@ def resp_to_trades_df(req: request):
     """
 
     df = pd.DataFrame(columns=Portfolio.TD_COLUMNS)
+    df.drop(['Pf_price', 'Pf_shares'], inplace=True, axis=1)
     data = req.form.listvalues()
     for col in df.columns:
         df[col] = next(data)
@@ -104,14 +105,14 @@ def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List,
                .format(PF_FORMAT_DICT, na_rep="--")
                .set_properties(**{'text-align': 'left'}, subset=left_align_cols)
                .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
-               .hide_index()
+               .hide(axis="index")
                .set_uuid(uuid)
                .set_table_attributes('class="hover stripe row-border order-column display compact"')
                )
     if ticker_links:
         df_html.format(
             stock_link, subset=pd.IndexSlice[df.index[:-1], 'Ticker'])
-    return df_html.render()
+    return df_html.to_html()
 
 
 def create_fig(df: pd.DataFrame, x: str, y: List, hover: List, height: int):

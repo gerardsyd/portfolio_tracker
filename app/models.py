@@ -77,6 +77,8 @@ class Trades(db.Model):
     price = db.Column(db.Numeric(20, 10), index=True)
     fees = db.Column(db.Numeric(20, 10), index=True)
     direction = db.Column(db.String(10), index=True)
+    pf_price = db.Column(db.Numeric(20, 10), index=True)
+    pf_shares = db.Column(db.Numeric(20, 10), index=True)
 
     def __repr__(self):
         return f'<{self.id}: {self.direction} trade on {self.date} for {self.quantity} of {self.ticker} at {self.price}>'
@@ -93,7 +95,7 @@ class Stocks(db.Model):
 
     def update_name(self):
         name = data.get_name(self.ticker)
-        if name == None:
+        if name is None:
             self.name = "NA"
         else:
             self.name = name[:60]
@@ -109,3 +111,6 @@ class Stocks(db.Model):
 
     def check_stock_exists(ticker):
         return Stocks.query.get(ticker)
+
+    def return_currency(ticker):
+        return Stocks.query.get(ticker).currency

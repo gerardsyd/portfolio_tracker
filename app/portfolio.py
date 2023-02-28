@@ -19,7 +19,8 @@ class Portfolio():
     """
 
     TYPE_CATEGORIES = ['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']
-    TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price', 'Fees', 'Direction']
+    TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price',
+                  'Fees', 'Direction', 'Pf_price', 'Pf_shares']
     SDF_COLUMNS = ['Ticker', 'Name', 'Currency', 'Last_updated']
     INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
                     'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date', 'Type']
@@ -67,7 +68,7 @@ class Portfolio():
             ValueError: Raised if columns of dataframe passed in do not match required columns
         """
 
-        logger.debug(f'-------  Check if DF has correct columns  -------')
+        logger.debug('-------  Check if DF has correct columns  -------')
 
         if all(trades.columns == self.TD_COLUMNS):
             logger.debug('Concatenating trades to trade_df')
@@ -110,10 +111,10 @@ class Portfolio():
             'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
         """
 
-        if start_date == None:
+        if start_date is None:
             start_date = self.trades_df['Date'].min()
 
-        if as_at_date == None:
+        if as_at_date is None:
             as_at_date = pd.to_datetime('today')
 
         logger.debug(
@@ -147,7 +148,7 @@ class Portfolio():
         # Calculate total cost of each stock in portfolio
         hist_df['Cost'] = hist_df.Quantity * hist_df.AvgCost
 
-        # merge hist_df, curr_df and irr_df 
+        # merge hist_df, curr_df and irr_df
         info_df = hist_df.merge(curr_df, on='Ticker', how='left')
         info_df.sort_values('Ticker', inplace=True)
         info_df = self._add_total_row(
@@ -198,9 +199,8 @@ class Portfolio():
         Returns:
             pd.DataFrame: Returns df with a total row with totals for specified list_cols and 'Total' as index
         """
-
-        df = df.append(pd.Series(name='Total'))
-        df.loc['Total'] = df.loc[:, list_cols].sum(axis=0,)
+        df = pd.concat([df, pd.Series(name='Total', dtype=float)])
+        df.loc['Total'] = df.loc[:, list_cols].sum(axis=0)
         df.at['Total', index] = 'Total'
         return df
 
@@ -225,7 +225,7 @@ class Portfolio():
         # make copy of trades_df with trades only looking at trades before or equal to as_at_date
         start = datetime.now()
         hist_pos = self.trades_df[self.trades_df.Date <= as_at_date].copy()
-        if tickers != None:
+        if tickers is not None:
             hist_pos = hist_pos[hist_pos['Ticker'].isin(tickers)].copy()
 
         hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
@@ -259,7 +259,8 @@ class Portfolio():
         # add dividend information
         for ticker in hist_pos['Ticker'].unique():
             dividends = div_df[(div_df['Ticker'] == ticker)
-                               & (div_df['Date'] >= start_date) & (div_df['Date'] <= as_at_date)].copy()
+                               & (div_df['Date'] >= start_date)
+                               & (div_df['Date'] <= as_at_date)].copy()
 
             if not dividends.empty:
                 # add dividend info if shares held when dividends paid
@@ -271,7 +272,7 @@ class Portfolio():
                         # only add dividend if more than 0 shares held
                         if div_qty != 0:
                             hist_pos = hist_pos.append(pd.DataFrame([[row['Date'], ticker, div_qty,
-                                                                      row['Dividends'], 0, 'Div', (div_qty * row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
+                                                                    row['Dividends'], 0, 'Div', (div_qty * row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
                             hist_pos.sort_values(
                                 ['Ticker', 'Date'], inplace=True)
                     except (ValueError, IndexError):
@@ -448,7 +449,7 @@ class Portfolio():
         curr_p.reset_index(inplace=True)
 
         # merge curr_p into hist_pos as transactions
-        CF_df = hist_pos.append(curr_p)
+        CF_df = pd.concat([hist_pos, curr_p])
         CF_df.sort_values(['Date'], inplace=True)
         CF_df.reset_index(inplace=True, drop=True)
 
@@ -458,14 +459,14 @@ class Portfolio():
 
         for name, _ in grouped_CF_df:
             stock_irr = irr.irr(grouped_CF_df.get_group(name).values.tolist())
-            IRR_df = IRR_df.append(pd.DataFrame(
-                [[name, stock_irr]], columns=IRR_df.columns))
+            IRR_df = pd.concat([IRR_df, pd.DataFrame(
+                [[name, stock_irr]], columns=IRR_df.columns)])
 
         CF_df.drop('Ticker', axis=1, inplace=True)
         CF_df.dropna(inplace=True)
         total_irr = irr.irr(CF_df.values.tolist())
-        IRR_df = IRR_df.append(pd.DataFrame(
-            [['Total', total_irr]], columns=IRR_df.columns), ignore_index=True)
+        IRR_df = pd.concat([IRR_df, pd.DataFrame(
+            [['Total', total_irr]], columns=IRR_df.columns)], ignore_index=True)
 
         # return DF with ticker and IRR
         return IRR_df
@@ -555,8 +556,8 @@ class Portfolio():
 
         for idx, row in p_hist_df.iterrows():
             try:
-                pos_at_date = hist_df[hist_df['Date'] <=
-                                      row['Date']].iloc[-1]
+                pos_at_date = hist_df[hist_df['Date']
+                                      <= row['Date']].iloc[-1]
                 p_hist_df.loc[idx, 'Quantity'] = pos_at_date['CumQuan']
                 p_hist_df.loc[idx, 'AvgCost'] = pos_at_date['AvgCost']
                 p_hist_df.loc[idx, 'Dividends'] = pos_at_date['CumDiv']
@@ -576,12 +577,14 @@ class Portfolio():
         # set index for new data
         new_data.set_index(['Ticker', 'Date'], inplace=True)
 
-        # load saved data and set index
-        saved_data = pd.read_pickle(self.filename)
-        saved_data.set_index(['Ticker', 'Date'], inplace=True)
+        # load saved data and set index, and combine if file exists
+        if path.exists(self.filename):
+            saved_data = pd.read_pickle(self.filename)
+            saved_data.set_index(['Ticker', 'Date'], inplace=True)
+            saved_data = saved_data.combine_first(new_data)
+        else:
+            saved_data = new_data
 
-        # combine data (updating null elements in saved data with values from new data)
-        saved_data = saved_data.combine_first(new_data)
         # updates data for existing rows (e.g. when newer price data downloaded)
         saved_data.update(new_data)
         saved_data.reset_index(inplace=True)

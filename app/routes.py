@@ -95,6 +95,7 @@ def update_pf():
     logger.info(f'info_date took {(datetime.now()-start)} to run')
 
     start = datetime.now()
+    df.loc[df['IRR'] > 10 ^ 6, 'IRR'] = 'NA'
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = web_utils.pandas_table_styler(
         df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
@@ -147,7 +148,7 @@ def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
         for t in trades_df['Ticker'].unique():
-            if Stocks.check_stock_exists(t) == None:
+            if Stocks.check_stock_exists(t) is None:
                 stock = Stocks(ticker=t)
                 stock.update_name()
                 stock.update_currency(
@@ -203,7 +204,7 @@ def stock(ticker: str):
     currency = request.args.get('currency')
     as_at_date = get_date(request.args.get(
         'date'), request.form.get('time_offset'))
-    logger.info(f'Loading trades from db')
+    logger.info('Loading trades from db')
     pf_trades = current_user.get_trades()
     start_date = pf_trades[pf_trades['Ticker'] == ticker]['Date'].min()
     trades = pf_trades[pf_trades['Ticker'] == ticker].to_html()
@@ -323,8 +324,8 @@ def get_date(date: str, offset: str):
         offset (str): timezone offset in string format
     """
     as_at_date = None
-    if date == '' or date == None:
-        if offset == None:
+    if date == '' or date is None:
+        if offset is None:
             tz = timezone(timedelta(minutes=0))
         else:
             tz = timezone(timedelta(minutes=-int(offset)))
