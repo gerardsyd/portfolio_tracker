@@ -1,6 +1,7 @@
 from datetime import datetime, timedelta, timezone
 import logging
 from os import path
+import traceback
 
 from flask import Flask, flash, render_template, request, redirect, url_for, abort
 from flask.globals import current_app
@@ -12,7 +13,7 @@ import plotly.io as pio
 from werkzeug.urls import url_parse
 
 from app import app, db
-from app.forms import LoginForm, RegistrationForm
+from app.forms import LoginForm, RegistrationForm, UpdateDetailsForm
 from app.models import Stocks, User, Trades
 from app.portfolio import Portfolio
 from utils import web_utils
@@ -124,9 +125,12 @@ def load_trades_csv():
         try:
             trade_df = pd.read_csv(pf_file, parse_dates=[
                 'Date'], dayfirst=True, thousands=',')
+            trade_df['Ticker'] = trade_df['Ticker'].str.upper()
             current_user.add_trades(trade_df)
             flash("Loaded successfully", "info")
         except Exception as e:
+            logger.debug(
+                f'------------- An error {traceback.print_exc()} occurred ----------------')
             flash("An error occured, try again!", "error")
     return redirect(url_for('index'))
 
@@ -151,7 +155,7 @@ def add_trades():
         trades_df = web_utils.resp_to_trades_df(request)
         for t in trades_df['Ticker'].unique():
             if Stocks.check_stock_exists(t) is None:
-                stock = Stocks(ticker=t)
+                stock = Stocks(ticker=t.upper())
                 stock.update_name()
                 stock.update_currency(
                     pf_currency=current_user.default_currency)
@@ -169,6 +173,7 @@ def add_trades():
 def view_trades():
     if request.method == 'GET':
         df = current_user.get_trades()
+        df.drop(columns=['Pf_price', 'Pf_shares', 'Fx'], inplace=True)
         if df.empty:
             flash('No portfolio trades founds. Please load file or add trades', 'error')
             return render_template('home.jinja2', title='Overview')
@@ -181,16 +186,16 @@ def view_trades():
         df_html = (df.reset_index(drop=True).style
                    .format({c: web_utils.html_input(c) for c in df.columns})
                    .set_uuid('view_trades')
-                   .hide_index()
-                   .render()
+                   .hide(axis='index')
+                   .to_html()
                    )
         return render_template('view_trades.jinja2', tables=df_html, title='View Trades')
     else:
         # gets updated trade data
         trades_df = web_utils.resp_to_trades_df(request)
+        logger.info(trades_df)
 
         # checks and deletes relevant rows
-        trades_df['Delete?'] = request.form.getlist('Delete?')
         trades_df = trades_df[trades_df['Delete?'] == '0']
         trades_df.drop(['Delete?'], axis=1, inplace=True)
         trades_df.reset_index(inplace=True, drop=True)
@@ -272,6 +277,27 @@ def tax():
         return render_template('tax.jinja2', title=title)
 
 
+@app.route('/user/<username>', methods=['GET', 'POST'])
+@login_required
+def profile(username):
+    form = UpdateDetailsForm()
+    if form.validate_on_submit():
+        # update database
+        if current_user.check_password(form.existing_password.data):
+            if form.password.data is not None:
+                current_user.set_password(form.password.data)
+            current_user.default_currency = form.currency.data
+            db.session.commit()
+            flash('Your changes have been saved!', 'info')
+            return redirect(url_for('profile', username=current_user.username))
+        else:
+            flash('Existing password is incorrect. Please try again!', 'error')
+    elif request.method == 'GET':
+        form.email.data = current_user.email
+        form.currency.data = current_user.default_currency
+    return render_template('profile.jinja2', username=username, title="Profile", form=form)
+
+
 def exportpftax(title: str):
     df = get_tax_df(title)
     resp = make_response(df.to_csv(index=False))
@@ -282,10 +308,13 @@ def exportpftax(title: str):
 
 def taxoutput(title: str):
     df = get_tax_df(title)
-    df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
-    df_html = web_utils.pandas_table_styler(
-        df, neg_cols=['RlGain'], left_align_cols=['Ticker', 'Name'], ticker_links=False, uuid='taxsummary')
-    df_html = web_utils.add_footer(df_html)
+    if df.empty:
+        df_html = "<p><div class='alert alert-primary' role='alert'> No dividends or capital gains in period</div>"
+    else:
+        df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
+        df_html = web_utils.pandas_table_styler(
+            df, neg_cols=['RlGain'], left_align_cols=['Ticker', 'Name'], ticker_links=False, uuid='taxsummary')
+        df_html = web_utils.add_footer(df_html)
     return render_template('tax.jinja2', tables=df_html, title=title)
 
 

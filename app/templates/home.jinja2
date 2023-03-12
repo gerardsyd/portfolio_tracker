@@ -2,15 +2,35 @@
 {% set active_page = "index" %}
 
 {% block app_styles %}
-    <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css"/>
-    <style>
-        table#T_portfolio.dataTable {font-size:14px}
-        th { font-size: 14px; text-align: left}
-        tr { font-size: 14px; text-align: right}
-        table#T_portfolio.dataTable tbody tr:hover {background-color: #dff}
-        table#T_portfolio.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
-        .td-left {text-align: left}
-    </style>
+<link rel="stylesheet" type="text/css"
+    href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css" />
+<style>
+    table#T_portfolio.dataTable {
+        font-size: 14px
+    }
+
+    th {
+        font-size: 14px;
+        text-align: left
+    }
+
+    tr {
+        font-size: 14px;
+        text-align: right
+    }
+
+    table#T_portfolio.dataTable tbody tr:hover {
+        background-color: #dff
+    }
+
+    table#T_portfolio.dataTable tbody tr:hover>.sorting_1 {
+        background-color: #dff
+    }
+
+    .td-left {
+        text-align: left
+    }
+</style>
 {% endblock app_styles %}
 
 {% block app_content %}
@@ -18,29 +38,22 @@
     <h2>Portfolio for {{ current_user.username }}</h2>
     <label> Portfolio actions:</label>
     <form action="/pfactions" method="post">
-    <div class="row">
-        <div class="col-sm"><input type="submit" name="action" value="Export to CSV"></div>
-    </div>
+        <div class="row">
+            <div class="col-sm"><input type="submit" name="action" value="Export to CSV"></div>
+        </div>
         <div class="row">
             <div class="col-sm">
                 <input type="date" name="date" id="date">
                 <input type="hidden" name="time_offset" id="time_offset" value="0">
             </div>
             <div class="col-sm">
-                <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances? 
+                <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances?
             </div>
             <div class="col-sm">
-                <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices? 
+                <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices?
             </div>
             <div class="col-sm">
-                Currency: 
-                <select name="currency" id="currency">
-                    <option value="AUD">AUD</option>
-                    <option value="USD">USD</option>
-                    <option value="GBP">GBP</option>
-                    <option value="EUR">EUR</option>
-                    <option value="ZAR">ZAR</option>
-                </select>
+                Currency: {{ current_user.default_currency }}
             </div>
             <div class="col-sm">
                 <input type="submit" name="action" value="Refresh">
@@ -51,29 +64,30 @@
 </div>
 <div class="container-fluid">
     <div class="table-responsive">
-            {{tables}}
+        {{tables}}
     </div>
 </div>
 {% endblock %}
 
 {% block app_scripts %}
-    
-    <script type="text/javascript" src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
 
-    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
-    <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
-    <script>
-    $(document).ready( function () {
-        var nameType = $.fn.dataTable.absoluteOrder( {
+<script type="text/javascript"
+    src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
+
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
+<script>
+    $(document).ready(function () {
+        var nameType = $.fn.dataTable.absoluteOrder({
             value: 'nan', position: 'bottom'
-        } );
+        });
         $.fn.dataTable.enum(['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']);
         $('#T_portfolio').DataTable({
             autoWidth: false,
             columnDefs: [
-                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: "num-fmt" },
-                { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16], type: nameType },
-                { targets: 18, visible: false}
+                { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], type: "num-fmt" },
+                { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16], type: nameType },
+                { targets: 18, visible: false }
             ],
             colReorder: true,
             fixedHeader: {
@@ -85,69 +99,69 @@
             orderFixed: [18, 'asc'],
             paging: false,
             responsive: true,
-            rowGroup:{
-                startRender: function (rows, group){
+            rowGroup: {
+                startRender: function (rows, group) {
                     var totalLastChange = rows
-                    .data()
-                    .pluck(5)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    totalLastChange = $.fn.dataTable.render.number(',', '.', 0, '').display( totalLastChange );
+                        .data()
+                        .pluck(5)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    totalLastChange = $.fn.dataTable.render.number(',', '.', 0, '').display(totalLastChange);
 
                     var totalVal = rows
-                    .data()
-                    .pluck(6)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    totalVal = $.fn.dataTable.render.number(',', '.', 0, '').display( totalVal );
+                        .data()
+                        .pluck(6)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    totalVal = $.fn.dataTable.render.number(',', '.', 0, '').display(totalVal);
 
                     var totalCost = rows
-                    .data()
-                    .pluck(11)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    totalCost = $.fn.dataTable.render.number(',', '.', 0, '').display( totalCost );
+                        .data()
+                        .pluck(11)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    totalCost = $.fn.dataTable.render.number(',', '.', 0, '').display(totalCost);
 
                     var rlGain = rows
-                    .data()
-                    .pluck(14)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    rlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( rlGain );
+                        .data()
+                        .pluck(14)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    rlGain = $.fn.dataTable.render.number(',', '.', 0, '').display(rlGain);
 
                     var urlGain = rows
-                    .data()
-                    .pluck(15)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    urlGain = $.fn.dataTable.render.number(',', '.', 0, '').display( urlGain );
+                        .data()
+                        .pluck(15)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    urlGain = $.fn.dataTable.render.number(',', '.', 0, '').display(urlGain);
 
                     var totalGain = rows
-                    .data()
-                    .pluck(16)
-                    .reduce( function (a, b) {
-                        return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g,'0')*1;
-                    }, 0);
-                    totalGain = $.fn.dataTable.render.number(',', '.', 0, '').display( totalGain );
+                        .data()
+                        .pluck(16)
+                        .reduce(function (a, b) {
+                            return a + b.replace(/[^\d.-]/g, '').replace(/(--)/g, '0') * 1;
+                        }, 0);
+                    totalGain = $.fn.dataTable.render.number(',', '.', 0, '').display(totalGain);
 
                     return $('<tr style="text-align:right"/>')
-                    .append( '<td style="text-align:left" colspan="5">'+group+'</td>' )
-                    .append( '<td>'+totalLastChange+'</td>' )
-                    .append( '<td>'+totalVal+'</td>' )
-                    .append( '<td colspan="4"/>' )
-                    .append( '<td>'+totalCost+'</td>' )
-                    .append( '<td colspan="2"/>' )
-                    .append( '<td>'+rlGain+'</td>' )
-                    .append( '<td>'+urlGain+'</td>' )
-                    .append( '<td>'+totalGain+'</td>' )
-                    .append( '<td/>' );
+                        .append('<td style="text-align:left" colspan="5">' + group + '</td>')
+                        .append('<td>' + totalLastChange + '</td>')
+                        .append('<td>' + totalVal + '</td>')
+                        .append('<td colspan="4"/>')
+                        .append('<td>' + totalCost + '</td>')
+                        .append('<td colspan="2"/>')
+                        .append('<td>' + rlGain + '</td>')
+                        .append('<td>' + urlGain + '</td>')
+                        .append('<td>' + totalGain + '</td>')
+                        .append('<td/>');
                 },
-                dataSrc: 18, 
+                dataSrc: 18,
                 startClassName: 'td-left'
             },
             searching: false
@@ -156,8 +170,8 @@
         var d = new Date();
         var n = d.getTimezoneOffset();
         document.getElementById("time_offset").value = n;
-    } );
-    
-    
-    </script>
+    });
+
+
+</script>
 {% endblock app_scripts %}

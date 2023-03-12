@@ -20,7 +20,7 @@ class Portfolio():
 
     TYPE_CATEGORIES = ['STOCK', 'FUND', 'CRYPTO', 'LOAN', 'CASH', '']
     TD_COLUMNS = ['Date', 'Ticker', 'Quantity', 'Price',
-                  'Fees', 'Direction', 'Pf_price', 'Pf_shares']
+                  'Fees', 'Direction', 'Pf_price', 'Pf_shares', 'Fx']
     SDF_COLUMNS = ['Ticker', 'Name', 'Currency', 'Last_updated']
     INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$LastChange', 'CurrVal', 'IRR', '%UnRlGain', '%PF',
                     'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date', 'Type']
@@ -72,8 +72,8 @@ class Portfolio():
 
         if all(trades.columns == self.TD_COLUMNS):
             logger.debug('Concatenating trades to trade_df')
-            trades.astype(
-                {'Quantity': 'float64', 'Price': 'float64', 'Fees': 'float64', 'Date': 'datetime64[ns]'}).dtypes
+            trades = trades.astype(
+                {'Quantity': 'float64', 'Price': 'float64', 'Fees': 'float64', 'Date': 'datetime64[ns]'})
             self.trades_df = pd.concat(
                 [self.trades_df, trades])
             self.trades_df.sort_values('Date', inplace=True)

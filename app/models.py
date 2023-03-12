@@ -1,10 +1,16 @@
 from datetime import datetime
 from flask_login import UserMixin
+import logging
 import pandas as pd
+import traceback
+
 from werkzeug.security import generate_password_hash, check_password_hash
 
 from app import db, login
 from utils import data
+
+
+logger = logging.getLogger('pt_logger')
 
 
 class User(UserMixin, db.Model):
@@ -41,14 +47,37 @@ class User(UserMixin, db.Model):
         if append:
             # If append is true, get existing trades and append passed df to existing trades
             exist_df = self.get_trades()
+            df.rename(str.capitalize, axis=1, inplace=True)
             if not exist_df.empty:
-                df = pd.concat([exist_df, df], ignore_index=True)
+                df = pd.concat([exist_df, df], ignore_index=True, join='inner')
 
-        # Replaces current trades with new df
-        self.drop_trades()
-        df.rename(str.lower, axis=1, inplace=True)
-        df['user_id'] = self.id
-        df.to_sql('trades', db.engine, if_exists='append', index=False)
+        # Update user_id to be current id
+        df['User_id'] = self.id
+        logger.info(df)
+
+        # Checks if tickers already in db and, if not, insert into DB
+        df_tickers = df['Ticker'].unique()
+        current_tickers = Stocks.current_tickers()
+        for ticker in df_tickers:
+            if ticker not in current_tickers:
+                stock = Stocks(ticker=ticker.upper())
+                stock.update_name()
+                stock.update_currency(
+                    pf_currency=self.default_currency)
+                stock.update_last_updated(None)
+                db.session.add(stock)
+                db.session.commit()
+
+        # Remove existing trades and add all trades to DB. Rollback changes if any errors
+        try:
+            Trades.query.filter_by(user_id=self.id).delete()
+            db.session.commit()
+            df.to_sql('trades', db.engine,
+                      if_exists='append', index=False)
+        except Exception as e:
+            # db.session.rollback()
+            logger.debug(
+                f'-------------- Exception {traceback.print_exc()} --------------')
 
     def drop_trades(self):
         Trades.query.filter_by(user_id=self.id).delete()
@@ -79,6 +108,7 @@ class Trades(db.Model):
     direction = db.Column(db.String(10), index=True)
     pf_price = db.Column(db.Numeric(20, 10), index=True)
     pf_shares = db.Column(db.Numeric(20, 10), index=True)
+    fx = db.Column(db.Numeric(20, 10), index=True)
 
     def __repr__(self):
         return f'<{self.id}: {self.direction} trade on {self.date} for {self.quantity} of {self.ticker} at {self.price}>'
@@ -110,7 +140,11 @@ class Stocks(db.Model):
         db.session.commit()
 
     def check_stock_exists(ticker):
-        return Stocks.query.get(ticker)
+        return Stocks.query.get(ticker.upper())
 
     def return_currency(ticker):
         return Stocks.query.get(ticker).currency
+
+    @classmethod
+    def current_tickers(cls):
+        return [stock.ticker for stock in cls.query.all()]

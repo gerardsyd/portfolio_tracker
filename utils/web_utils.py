@@ -51,13 +51,14 @@ def resp_to_trades_df(req: request):
 
     """
 
-    df = pd.DataFrame(columns=Portfolio.TD_COLUMNS)
-    df.drop(['Pf_price', 'Pf_shares'], inplace=True, axis=1)
-    data = req.form.listvalues()
-    for col in df.columns:
-        df[col] = next(data)
-    df['Date'] = pd.to_datetime(df['Date'], dayfirst=True)
-    return df
+    data_dict = req.form.to_dict(flat=False)
+    data_df = pd.DataFrame(data_dict)
+    data_df.rename(str.capitalize, axis=1, inplace=True)
+    data_df = data_df.astype(
+        {'Quantity': 'float64', 'Price': 'float64', 'Fees': 'float64', 'Date': 'datetime64[ns]'})
+
+    data_df['Ticker'] = data_df['Ticker'].str.upper()
+    return data_df
 
 
 def html_input(col: str):

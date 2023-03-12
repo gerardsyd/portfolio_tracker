@@ -217,10 +217,16 @@ def get_name(ticker: str) -> str:
             try:
                 name = stock.info['longName']
             except (IndexError, KeyError) as e:
-                logger.debug(f'-------  Ticker {ticker} not found -------')
+                logger.info(f'-------  Ticker {ticker} not found -------')
+                logger.debug(f'-------  Error is {e} -------')
                 name = "NA"
-        except (ValueError, AttributeError):
-            logger.debug(f'-------  Ticker name {ticker} not found -------')
+            except Exception as e:
+                logger.info(f'-------  Ticker {ticker} not found -------')
+                logger.debug(f'-------  Error is {e} -------')
+                name = "NA"
+        except (ValueError, AttributeError) as e:
+            logger.info(f'-------  Ticker name {ticker} not found -------')
+            logger.debug(f'-------  Error is {e} -------')
             name = "NA"
     elif ticker_type == 'FUND':
         try:
@@ -256,8 +262,14 @@ def get_currency(ticker: str, pf_currency: str) -> str:
             try:
                 currency = stock.info['currency']
             except (IndexError, KeyError) as e:
-                logger.debug(
+                logger.info(
                     f'-------  Currency for {ticker} not found -------')
+                logger.debug(f'-------  Error is {e} -------')
+                currency = "NA"
+            except Exception as e:
+                logger.info(
+                    f'-------  Currency for {ticker} not found -------')
+                logger.debug(f'-------  Error is {e} -------')
                 currency = "NA"
         except (ValueError, AttributeError):
             logger.debug(
