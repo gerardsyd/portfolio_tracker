@@ -13,7 +13,7 @@ portfolio_tracker.code-workspace
 .env
 *.json
 *.xlsx
-test.py
+test*.py
 db_temp.txt
 
 # Elastic Beanstalk Files

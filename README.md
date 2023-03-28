@@ -2,6 +2,12 @@
 Tracks stock, funds, crypto asset portfolio including gains / losses, dividends etc using python. Can track any assets listed on [yfinance](https://github.com/ranaroussi/yfinance), [investpy](https://github.com/alvarobartt/investpy) and [binance](https://github.com/sammchardy/python-binance)
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
+
+## Update 28 March 2023
+- Moved stock prices away from flatfile to SQL db
+- Fixed FX so that portfolio page shows in default currency for user
+- Bug fixes
+
 ## Update 12 March 2023
 - Added profile page to include ability to change password and FX
 - Various bug fixes in routes and updated to more recent version of packages

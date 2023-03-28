@@ -16,18 +16,18 @@ binance_api_secret = os.environ.get('BINANCE_API_SECRET')
 nomic_api_key = os.environ.get('NOMIC_API_KEY')
 
 
-def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.datetime64, currency: str = 'AUD') -> pd.DataFrame:
+def get_crypto_price(symbol: str, start_date: datetime, end_date: datetime, currency: str = 'AUD') -> pd.DataFrame:
     """
     Get crypto asset prices in required currency, returns dataframe in format required for data module
 
     Args:
         symbol (str): String ticker of crypto asset (e.g ETH)
-        start_date (np.datetime64): start date for historical price data
-        end_date (np.datetime64): start date for historical price data
+        start_date (datetime): start date for historical price data
+        end_date (datetime): start date for historical price data
         currency (str, optional): currency pair for conversion. Defaults to 'AUD'.
 
     Returns:
-        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for crypto-currency pair from start_date to end_date 
+        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for crypto-currency pair from start_date to end_date
     """
 
     # check if required crypto is BTC in which case get pair with currency else get fx conversion
@@ -60,13 +60,13 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
         data_df.rename(columns={'Close_x': 'Close'}, inplace=True)
         data_df.drop(['close_time', 'quote_av', 'trades', 'tb_base_av',
                       'tb_quote_av', 'ignore', 'Close_y'], axis=1, inplace=True)
-        data_df['Stock Splits'] = 0
+        data_df['Splits'] = 0
         data_df['Dividends'] = 0
     elif isinstance(crypto_prices, pd.DataFrame) and (symbol == 'BTC' or currency == 'BTC'):
         # if required crypto is BTC (or BTC is currency), get BTC-currency / crypto-BTC pair
         data_df = crypto_prices.drop(['close_time', 'quote_av', 'trades', 'tb_base_av',
                                       'tb_quote_av', 'ignore'], axis=1)
-        data_df['Stock Splits'] = 0
+        data_df['Splits'] = 0
         data_df['Dividends'] = 0
     else:
         # crypto (or FX) not available in Binance and return nothing
@@ -74,17 +74,17 @@ def get_crypto_price(symbol: str, start_date: np.datetime64, end_date: np.dateti
     return data_df
 
 
-def get_prices_from_API(symbol_pair: str, start_date: np.datetime64, end_date: np.datetime64) -> pd.DataFrame:
+def get_prices_from_API(symbol_pair: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """
     Get crypto asset price history from Binance
 
     Args:
         symbol (str): String ticker of crypto asset (e.g ETH)
-        start_date (np.datetime64): start date for historical price data
-        end_date (np.datetime64): start date for historical price data
+        start_date (datetime): start date for historical price data
+        end_date (datetime): start date for historical price data
 
     Returns:
-        pd.DataFrame: Dataframe containing binance data for crypto-currency pair from start_date to end_date 
+        pd.DataFrame: Dataframe containing binance data for crypto-currency pair from start_date to end_date
     """
 
     client = Client(api_key=binance_api_key, api_secret=binance_api_secret)
@@ -92,7 +92,7 @@ def get_prices_from_API(symbol_pair: str, start_date: np.datetime64, end_date: n
         data = client.get_historical_klines(symbol_pair, client.KLINE_INTERVAL_1DAY, start_date.strftime(
             "%d %b %Y %H:%M:%S"), end_date.strftime("%d %b %Y %H:%M:%S"))
     except BinanceAPIException as e:
-        print(f'symbol_pair is not available on Binance')
+        print(f'{symbol_pair} is not available on Binance')
         return None
     else:
         data_df = pd.DataFrame(data, columns=['Date', 'Open', 'High', 'Low', 'Close',
@@ -104,7 +104,7 @@ def get_prices_from_API(symbol_pair: str, start_date: np.datetime64, end_date: n
         return data_df
 
 
-def get_FX_rates(from_currency: str, to_currency: str, start_date: np.datetime64, end_date: np.datetime64):
+def get_FX_rates(from_currency: str, to_currency: str, start_date: datetime, end_date: datetime):
     if to_currency == "USD":
         return get_prices_from_nomic(from_currency, start_date, end_date)
     if from_currency == "USD":
@@ -120,7 +120,7 @@ def get_FX_rates(from_currency: str, to_currency: str, start_date: np.datetime64
         return merged_df
 
 
-def get_prices_from_nomic(currency: str, start_date: np.datetime64, end_date: np.datetime64):
+def get_prices_from_nomic(currency: str, start_date: datetime, end_date: datetime):
     start_date = start_date.isoformat("T") + "Z"
     end_date = end_date.isoformat("T") + "Z"
     url = f"https://api.nomics.com/v1/exchange-rates/history?key={nomic_api_key}&currency={currency}&start={start_date}&end={end_date}"
