@@ -207,7 +207,7 @@ class User(UserMixin, db.Model):
         info_df['%CostPF'] = info_df['Cost'] / info_df['Cost'][:-1].sum()
         info_df['CurrVal'] = info_df['Quantity'] * info_df['LastPrice'] * info_df['Fx']
         info_df.at[tot_index, 'CurrVal'] = info_df['CurrVal'].sum()
-        info_df['$LastChange'] = info_df['CurrVal'] * (1 - 1 / (1 + info_df['%LastChange']))
+        info_df['$LastChange'] = info_df['CurrVal'] * (1 - 1 / (1 + info_df['%LastChange'])) * info_df['Fx']
         info_df.at[tot_index, '$LastChange'] = info_df['$LastChange'].sum()
         info_df['%PF'] = info_df['CurrVal'] / info_df['CurrVal'][:-1].sum()
         info_df['UnRlGain'] = info_df['CurrVal'] + info_df['Cost']
@@ -512,7 +512,6 @@ class User(UserMixin, db.Model):
 
         splits = StockPrices.query.filter(StockPrices.ticker == ticker, StockPrices.splits != 0).order_by(StockPrices.date.asc()).all()
         divs = StockPrices.query.filter(StockPrices.ticker == ticker, StockPrices.dividends != 0).order_by(StockPrices.date.asc()).all()
-        logger.info(divs)
 
         hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, splits=splits, divs=divs, tickers=[ticker])
         prices_df = prices_df[prices_df['Date'] >= hist_df['Date'].min()]
