@@ -6,8 +6,9 @@ import numpy as np
 import traceback
 from typing import List, Union
 
-from sqlalchemy import func, select
+from sqlalchemy import func, select, UniqueConstraint
 from sqlalchemy.ext.hybrid import hybrid_property
+from sqlalchemy.dialects.mysql import insert
 from sqlalchemy.orm import aliased
 from werkzeug.security import generate_password_hash, check_password_hash
 
@@ -120,12 +121,12 @@ class User(UserMixin, db.Model):
         db.session.commit()
 
     def get_stock_info(self):
-        tickers = self.get_trades()['Ticker'].unique()
+        tickers = self.get_tickers()
         df = pd.read_sql(Stocks.query.filter(Stocks.ticker.in_(tickers)).statement, db.engine).rename(str.capitalize, axis=1)
         return df
 
     def get_tickers(self):
-        return Trades.query.distinct(Trades.ticker).all()
+        return [t[0] for t in db.session.query(Trades.ticker).filter(Trades.user_id == self.id).distinct().all()]
 
     def info_date(self, start_date: datetime = None, as_at_date: datetime = None, hide_zero_pos: bool = False) -> pd.DataFrame:
         """
@@ -142,9 +143,7 @@ class User(UserMixin, db.Model):
             'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date']
         """
         # Set up variables
-        # trades_df = self.get_trades()
-        # tickers = list(trades_df['Ticker'].unique())
-        tickers = [t[0] for t in db.session.query(Trades.ticker).distinct().all()]
+        tickers = self.get_tickers()
         tickers.extend(self.currencies())  # add currencies to ticker list
 
         if start_date is None:
@@ -327,7 +326,6 @@ class User(UserMixin, db.Model):
         hist_pos.reset_index(drop=True, inplace=True)
         # use AvgCost Adjusted where position completely sold out to reset costbase, otherwise use raw number
         hist_pos['AvgCost'] = np.where(hist_pos['grouping'] == 0, hist_pos['AvgCostRaw'], hist_pos['AvgCostAdj'])
-        hist_pos.to_csv('data/Cf_avgcost.csv')
 
         hist_pos['RlGain'] = np.where(((hist_pos.Direction == 'Sell') & (hist_pos.Date >= start_date)), hist_pos.CF + (hist_pos.AvgCost * hist_pos.Quantity), 0)
         hist_pos['Dividends'] = np.where(hist_pos.Direction == 'Div', hist_pos.CF, 0)
@@ -475,10 +473,27 @@ class User(UserMixin, db.Model):
                     logger.debug(f'No price for {ticker} on {as_at_date}')
             else:
                 logger.debug(f'No price for {ticker} on {as_at_date}')
-        lp = [latest_price[0].__dict__ for latest_price in latest_prices]
-        for i, latest_price in enumerate(latest_prices):
-            lp[i].update({'currency': latest_price[1]})
-        df = pd.DataFrame(lp).rename(str.capitalize, axis=1)[columns].astype(col_types)
+
+        # Convert the result set to a list of dictionaries
+        latest_prices_dicts = [
+            {
+                'ticker': p[0].ticker,
+                'date': p[0].date,
+                'open': p[0].open,
+                'high': p[0].high,
+                'low': p[0].low,
+                'close': p[0].close,
+                'volume': p[0].volume,
+                'adjclose': p[0].adjclose,
+                'dividends': p[0].dividends,
+                'splits': p[0].splits,
+                'currency': p[1]
+            }
+            for p in latest_prices
+        ]
+
+        # Create a pandas DataFrame from the list of dictionaries
+        df = pd.DataFrame(latest_prices_dicts).rename(str.capitalize, axis=1).astype(col_types)[columns]
         return df
 
     @staticmethod
@@ -558,7 +573,6 @@ class User(UserMixin, db.Model):
         if tickers is None:
             tickers = list(self.get_trades()['Ticker'].unique())
             tickers.extend(self.currencies())
-            logger.debug(tickers)
 
         pf_min_date = self.get_trades()['Date'].min()
         # for tickers already in stockprices, work out update period
@@ -581,18 +595,20 @@ class User(UserMixin, db.Model):
                         join(Stocks, Trades.ticker == Stocks.ticker).\
                         filter(Trades.user_id == self.id).\
                         filter(Stocks.currency == curr).\
-                        first()[0]
+                        first()[0] or pf_min_date
                 else:
                     min_date = pf_min_date
             else:
-                min_date = pf_min_date if self.get_ticker_trades(ticker) is None else self.get_ticker_trades(ticker)['date'].min()
+                min_date = pf_min_date if self.get_ticker_trades(ticker)['date'].min() is None else self.get_ticker_trades(ticker)['date'].min()
             df = pd.concat([df, pd.DataFrame({'ticker': ticker, 'start_date': min_date, 'end_date': as_at_date}, index=[0])], ignore_index=True)
 
         # get price data for all tickers as needed and reset index. Replace NaN with None for insertion into SQL
         prices = data.get_price_data(df['ticker'], df['start_date'], df['end_date'], [self.default_currency] * len(df['ticker'])).reset_index()
         prices = prices.replace(np.NaN, None)
 
+        start1 = datetime.now()
         # iterate through rows in prices to update SQL database with updated prices where already existing or to append new data
+        price_data_list = []
         for _, row in prices.iterrows():
             price_data = {
                 'ticker': row['Ticker'],
@@ -606,20 +622,16 @@ class User(UserMixin, db.Model):
                 'dividends': row['Dividends'],
                 'splits': row['Splits']
             }
-            stock_price = StockPrices.query.filter_by(ticker=price_data['ticker'], date=price_data['date']).first()
-            if stock_price:
-                # stock price exists, updating with new information
-                logger.debug(f'Updating {row["Ticker"]=} with {row["Date"]=}')
-                for key, value in price_data.items():
-                    setattr(stock_price, key, value)
-            else:
-                # Stock price doesn't exist so creating new price and adding to db
-                logger.debug(f'Adding {row["Ticker"]=} with {row["Date"]=}')
-                stock_price = StockPrices(**price_data)
-                db.session.add(stock_price)
+            price_data_list.append(price_data)
 
-        # commit all changes
+        # Bulk insert/update price data
+        start1 = datetime.now()
+        stmt = insert(StockPrices).values(price_data_list)
+        update_cols = {c.name: c for c in StockPrices.__table__.columns if c.name not in {'ticker', 'date'}}
+        on_duplicate_key_stmt = stmt.on_duplicate_key_update({key: getattr(stmt.inserted, key) for key in update_cols})
+        db.session.execute(on_duplicate_key_stmt)
         db.session.commit()
+        print(f'DB update took {datetime.now() - start1} to run')
 
         logger.info(f'price update took {(datetime.now()-start)} to run')
         return prices
@@ -691,6 +703,8 @@ class StockPrices(db.Model):
     adjclose = db.Column(db.Numeric(40, 20), index=True)
     dividends = db.Column(db.Numeric(40, 20), index=True)
     splits = db.Column(db.Numeric(20, 10), index=True)
+
+    __table_args__ = (UniqueConstraint('ticker', 'date', name='unique_ticker_date'), )
 
     def __repr__(self):
         return f'<{self.ticker} price on {self.date}: {self.close}>'
