@@ -2,6 +2,7 @@ from datetime import datetime, timedelta
 import logging
 from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
+import traceback
 
 import investpy
 from json.decoder import JSONDecodeError
@@ -76,9 +77,26 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: 
             logger.debug('Obtained data, concatenating')
             concat_data = pd.concat(
                 all_data, keys=tickers, names=['Ticker', 'Date'])
-    except ValueError:
+    except ValueError as e:
         raise ValueError('Please provide at least one ticker')
     return concat_data
+
+
+def get_duplicates(lst):
+    counts = {}
+    duplicates = []
+
+    for item in lst:
+        if item in counts:
+            counts[item] += 1
+        else:
+            counts[item] = 1
+
+    for key, value in counts.items():
+        if value > 1:
+            duplicates.append(key)
+
+    return duplicates
 
 
 def get_loan_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
@@ -186,6 +204,7 @@ def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
             df.index = pd.Index(df.index.date)  # remove times from dowloaded data to get clean dataset
         if 'Capital Gains' in df.columns:
             df.drop(columns=["Capital Gains"], inplace=True)
+        df.index.names = ['Date']
     except KeyError:
         df = None
     except RuntimeError:
