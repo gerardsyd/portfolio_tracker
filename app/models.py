@@ -93,7 +93,7 @@ class User(UserMixin, db.Model):
             Trades.query.filter_by(user_id=self.id).delete()
             db.session.commit()
             df.to_sql('trades', db.engine, if_exists='append', index=False)
-        except Exception as e:
+        except Exception:
             # db.session.rollback()
             logger.debug(f'-------------- Exception {traceback.print_exc()} --------------')
 
@@ -164,7 +164,7 @@ class User(UserMixin, db.Model):
         logger.debug('Getting latest prices for tickers')
         curr_df = self.current_prices(tickers=tickers, as_at_date=as_at_date, last_change=True)
         logger.debug('Getting historical positions and calculating current holdings')
-        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, splits=splits, divs=divs)
+        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, splits=splits, divs=divs, include_dividends=True, calculate_gains=True)
 
         logger.debug('Getting IRR for each position')
         start = datetime.now()
@@ -224,7 +224,7 @@ class User(UserMixin, db.Model):
         logger.info(f'Clean up data took {(datetime.now()-start)} to run')
         return info_df
 
-    def hist_positions(self, start_date: datetime, as_at_date: datetime, splits: List, divs: List, tickers: List = None) -> pd.DataFrame:
+    def hist_positions(self, start_date: datetime, as_at_date: datetime, splits: List, divs: List, tickers: List = None, include_dividends: bool = True, calculate_gains: bool = True) -> pd.DataFrame:
         """
         Calculate historical positions for all stocks in trades for user as at given date
 
@@ -242,18 +242,26 @@ class User(UserMixin, db.Model):
                     'QBuy', 'QBuyQuan', 'AvgCost', 'RlGain', 'Dividends', 'CumDiv', 'TotalRlGain']
         """
 
-        # make copy of trades_df with trades only looking at trades before or equal to as_at_date
-        start = datetime.now()
-        hist_pos_statement = db.session.query(Trades, Stocks.currency).where(Trades.date <= as_at_date, Trades.user_id == 1, Trades.ticker == Stocks.ticker).statement
-        hist_pos = pd.read_sql(hist_pos_statement, db.engine).drop(columns=['id', 'user_id']).rename(str.capitalize, axis=1)
+        # Get historical positions based on dates provided and filter by tickers
+        hist_pos_statement = db.session.query(Trades, Stocks.currency).where(Trades.date <= as_at_date, Trades.user_id == self.id, Trades.ticker == Stocks.ticker).statement
+        hist_pos = pd.read_sql(hist_pos_statement, db.engine).drop(columns=['id', 'user_id', 'pf_price', 'pf_shares']).rename(str.capitalize, axis=1)
         if tickers is not None:
             hist_pos = hist_pos[hist_pos['Ticker'].isin(tickers)].copy()
-
         hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
-        logger.info(f'hist_pos load and clean took {(datetime.now()-start)} to run')
 
-        start = datetime.now()
-        # adjust trades for splits
+        # Adjust hist_pos for splits and get quantities at each point along with cumulative quantities
+        hist_pos = self.adjust_for_splits(hist_pos, splits)
+        hist_pos['AdjQuan'] = np.where(hist_pos.Direction == 'Sell', -1, np.where(hist_pos.Direction == 'Div', 0, 1)) * hist_pos.Quantity
+        hist_pos['CumQuan'] = hist_pos.groupby('Ticker')['AdjQuan'].cumsum()
+
+        if include_dividends:
+            hist_pos = self.add_dividends(hist_pos, divs)  # Add dividends
+        hist_pos = self.get_fx(hist_pos)  # Add FX
+        if calculate_gains:
+            hist_pos = self.calculate_gains(hist_pos, start_date)  # Calculate gains and losses
+        return hist_pos
+
+    def adjust_for_splits(self, hist_pos, splits):
         for split in splits:
             hist_pos['Quantity'] = np.where(
                 (hist_pos['Date'] <= split.date) & (hist_pos['Ticker'] == split.ticker),
@@ -263,76 +271,48 @@ class User(UserMixin, db.Model):
                 (hist_pos['Date'] <= split.date) & (hist_pos['Ticker'] == split.ticker),
                 hist_pos['Price'] / float(split.splits),
                 hist_pos['Price'])
-            # div_df['Dividends'] = np.where(
-            #             (div_df['Date'] <= split.date) & (div_df['Ticker'] == split.ticker), div_df['Dividends'] / split.splits, div_df['Dividends'])
+        return hist_pos
 
-        logger.info(f'adjust for splits took {(datetime.now()-start)} to run')
-        # logger.info(hist_pos)
-        start = datetime.now()
-        # create new columns to include cashflow, quantity (with buy / sell) and cumulative quantity by ticker
-        # hist_pos['CF'] = np.where(hist_pos.Direction == 'Buy', -1, 1) * (hist_pos.Quantity * hist_pos.Price * hist_pos.Fx) - (hist_pos.Fees * hist_pos.Fx)
-        hist_pos['AdjQuan'] = np.where(hist_pos.Direction == 'Sell', -1, np.where(hist_pos.Direction == 'Div', 0, 1)) * hist_pos.Quantity
-        hist_pos['CumQuan'] = hist_pos.groupby('Ticker')['AdjQuan'].cumsum()
-
-        # add dividend information
+    def add_dividends(self, hist_pos, divs):
         for dividend in divs:
             dt_div = hist_pos[(hist_pos['Date'] <= dividend.date) & (hist_pos['Ticker'] == dividend.ticker)]['Date'].index
             if not dt_div.empty:
                 div_qty = hist_pos.at[dt_div[-1], 'CumQuan']
-
-                # only add dividend if more than 0 shares held
                 if div_qty != 0:
-                    div_data = {'Date': dividend.date,
-                                'Ticker': dividend.ticker,
-                                'Quantity': div_qty,
-                                'Price': float(dividend.dividends),
-                                'Fees': 0,
-                                'Direction': 'Div',
-                                'CF': (div_qty * float(dividend.dividends)),
-                                'AdjQuan': 0,
-                                'CumQuan': div_qty,
-                                'Currency': hist_pos.at[dt_div[0], 'Currency']}
-                    hist_pos = pd.concat([hist_pos, pd.DataFrame(div_data, index=[0])], ignore_index=True)
+                    div_data = {
+                        'Date': dividend.date,
+                        'Ticker': dividend.ticker,
+                        'Quantity': div_qty,
+                        'Price': float(dividend.dividends),
+                        'Fees': float(0),
+                        'Direction': 'Div',
+                        'Currency': hist_pos.at[dt_div[0], 'Currency'],
+                        'AdjQuan': float(0),
+                        'CumQuan': div_qty}
+
+                    div_data_df = pd.DataFrame(div_data, index=[0])
+                    div_data_df['Date'] = div_data_df['Date'].astype('datetime64[ns]')
+                    hist_pos = pd.concat([hist_pos, div_data_df], ignore_index=True)
                     hist_pos.sort_values(['Ticker', 'Date'], inplace=True)
-        logger.info(f'add divs took {(datetime.now()-start)} to run')
-        # logger.info(hist_pos)
+        return hist_pos
 
-        start = datetime.now()
-        hist_pos = self.get_fx(hist_pos)
-        # Adjust for currency
-        # hist_pos['Fx'] = np.where(hist_pos['Currency'] == self.default_currency, float(1), np.NaN)
-        # for index, row in hist_pos.iterrows():
-        #     type = data.split_ticker(row['Ticker'])[1]
-        #     if np.isnan(row['Fx']) and type not in ['CRYPTO', 'CASH', 'LOAN']:
-        #         hist_pos.at[index, 'Fx'] = float(db.session.query(StockPrices.close).filter(
-        #             StockPrices.ticker == f'{row["Currency"]}{self.default_currency}=X.FX').filter(StockPrices.date == row['Date']).scalar())
-        #     elif np.isnan(row['Fx']) and type in ['CRYPTO', 'CASH', 'LOAN']:
-        #         hist_pos.at[index, 'Fx'] = float(1)
-        logger.info(f'hist_pos fx took {(datetime.now()-start)} to run')
-
-        start = datetime.now()
-        # Calculate realised gains calculated as trade value less cost base + dividends. Cost base calculated based on average entry price (not adjusted for sales)
+    def calculate_gains(self, hist_pos, start_date):
         hist_pos['CF'] = np.where(hist_pos.Direction == 'Buy', -1, 1) * (hist_pos.Quantity * hist_pos.Price * hist_pos.Fx) - (hist_pos.Fees * hist_pos.Fx)
         hist_pos['CFBuy'] = np.where(hist_pos.Direction == 'Buy', hist_pos.CF, 0)
-        hist_pos['CumCost'] = hist_pos.groupby('Ticker')['CFBuy'].cumsum()
+        hist_pos['CumCost'] = hist_pos.groupby('Ticker', group_keys=False)['CFBuy'].cumsum()
         hist_pos['QBuy'] = np.where(hist_pos.Direction == 'Buy', hist_pos.Quantity, 0)
         hist_pos['CumBuyQuan'] = hist_pos.groupby('Ticker')['QBuy'].cumsum()
 
-        # calculate average cost
         hist_pos['AvgCostRaw'] = hist_pos['CumCost'] / hist_pos['CumBuyQuan']
-        # calculate average buy cost for stock (adjusting for sales to zero)
-        hist_pos_grouped = hist_pos.groupby('Ticker')
+        hist_pos_grouped = hist_pos.groupby('Ticker', group_keys=False)
         hist_pos = hist_pos_grouped.apply(self.calc_avg_price)
         hist_pos.reset_index(drop=True, inplace=True)
-        # use AvgCost Adjusted where position completely sold out to reset costbase, otherwise use raw number
         hist_pos['AvgCost'] = np.where(hist_pos['grouping'] == 0, hist_pos['AvgCostRaw'], hist_pos['AvgCostAdj'])
 
         hist_pos['RlGain'] = np.where(((hist_pos.Direction == 'Sell') & (hist_pos.Date >= start_date)), hist_pos.CF + (hist_pos.AvgCost * hist_pos.Quantity), 0)
         hist_pos['Dividends'] = np.where(hist_pos.Direction == 'Div', hist_pos.CF, 0)
         hist_pos['CumDiv'] = hist_pos.groupby('Ticker')['Dividends'].cumsum()
         hist_pos['TotalRlGain'] = hist_pos.groupby('Ticker')['RlGain'].cumsum()
-        logger.info(f'hist_pos clean up took {(datetime.now()-start)} to run')
-        # logger.info(hist_pos)
 
         return hist_pos
 
@@ -350,11 +330,11 @@ class User(UserMixin, db.Model):
         df['Fx'] = np.where(df['Currency'] == self.default_currency, float(1), np.NaN)
         for index, row in df.iterrows():
             type = data.split_ticker(row['Ticker'])[1]
-            if np.isnan(row['Fx']) and type not in ['CRYPTO', 'CASH', 'LOAN']:
+            if np.isnan(row['Fx']) and type not in ['CASH', 'LOAN']:
                 fx_rate = db.session.query(StockPrices.close).filter(
                     StockPrices.ticker == f'{row["Currency"]}{self.default_currency}=X.FX').filter(StockPrices.date == row['Date']).scalar() or float(1)
                 df.at[index, 'Fx'] = float(fx_rate)
-            elif np.isnan(row['Fx']) and type in ['CRYPTO', 'CASH', 'LOAN']:
+            elif np.isnan(row['Fx']) and type in ['CASH', 'LOAN']:
                 df.at[index, 'Fx'] = float(1)
         return df
 
@@ -523,13 +503,15 @@ class User(UserMixin, db.Model):
         return df
 
     def price_history(self, ticker: str, start_date: datetime, as_at_date: datetime, period: str) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        logger.info(f'********************{ticker}*************************')
         prices_df = pd.read_sql(StockPrices.query.filter(StockPrices.ticker == ticker).statement, db.engine).rename(str.capitalize, axis=1)
 
         splits = StockPrices.query.filter(StockPrices.ticker == ticker, StockPrices.splits != 0).order_by(StockPrices.date.asc()).all()
         divs = StockPrices.query.filter(StockPrices.ticker == ticker, StockPrices.dividends != 0).order_by(StockPrices.date.asc()).all()
 
-        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, splits=splits, divs=divs, tickers=[ticker])
+        hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date, splits=splits, divs=divs, tickers=[ticker], include_dividends=True, calculate_gains=True)
         prices_df = prices_df[prices_df['Date'] >= hist_df['Date'].min()]
+        prices_df['Date'] = pd.to_datetime(prices_df['Date'])       # force date column to be datetime objects
         if period == 'A':
             p_hist_df = prices_df.groupby(prices_df['Date'].dt.year).tail(1).copy()
         elif period == 'M':

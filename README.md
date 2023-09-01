@@ -3,6 +3,11 @@ Tracks stock, funds, crypto asset portfolio including gains / losses, dividends 
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
 
+## Update 1 September 2023
+- Allow deleting row in add trades section
+- Fixed crypto issue -> all crypto now base converted to USD and then converted to local currency
+- Cleaned up hist_positions function in models
+
 ## Update 28 March 2023
 - Moved stock prices away from flatfile to SQL db
 - Fixed FX so that portfolio page shows in default currency for user
@@ -64,15 +69,12 @@ See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-track
 - If quantity / price / fees are blank when providing trade data, portfolio calculations do not work as expected (when using Load Portfolio)
 
 ## To be built / implemented
-- Prices to be included in SQL database
 - Monthly view of assets
 - Add functionality for dividends to be manually entered (partially built)
 - Track dividends switch off- Allow multiple portfolios?
-- Add support for exchange rates
 - Include edit / add trades in each stock's section
 - Dashboard for each stock to include performance over time incl buys, sells, divs; trade history; current position / p&l; overview position / p&l
 - Dashboard for portfolio: change in val over time; overview position / p&l
 - allow hiding certain stocks on portfolio + recalculate position
 - Automate entering trade data? 
-- Allow deleting row in add trades section
 - Consider if Portfolio object uses direct SQL instead of pandas dataframe

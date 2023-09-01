@@ -27,12 +27,15 @@ email-validator = "*"
 sqlalchemy = "<2"
 selenium = "*"
 yahooquery = "*"
+update = "*"
+requests = "*"
+urllib3 = "<2"
+pyopenssl = "*"
 
 [dev-packages]
 flake8 = "*"
 autopep8 = "*"
 ipython = "*"
-ipykernel = "*"
 
 [requires]
-python_version = "3.10"
+python_version = "3.11"

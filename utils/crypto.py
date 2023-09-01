@@ -1,6 +1,5 @@
 import logging
 import pandas as pd
-import numpy as np
 import os
 from datetime import datetime
 import requests
@@ -16,7 +15,7 @@ binance_api_secret = os.environ.get('BINANCE_API_SECRET')
 nomic_api_key = os.environ.get('NOMIC_API_KEY')
 
 
-def get_crypto_price(symbol: str, start_date: datetime, end_date: datetime, currency: str = 'AUD') -> pd.DataFrame:
+def get_crypto_price(symbol: str, start_date: datetime, end_date: datetime, currency: str = 'USD') -> pd.DataFrame:
     """
     Get crypto asset prices in required currency, returns dataframe in format required for data module
 
@@ -24,7 +23,7 @@ def get_crypto_price(symbol: str, start_date: datetime, end_date: datetime, curr
         symbol (str): String ticker of crypto asset (e.g ETH)
         start_date (datetime): start date for historical price data
         end_date (datetime): start date for historical price data
-        currency (str, optional): currency pair for conversion. Defaults to 'AUD'.
+        currency (str, optional): currency pair for conversion. Defaults to 'USD'.
 
     Returns:
         pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for crypto-currency pair from start_date to end_date
@@ -92,7 +91,8 @@ def get_prices_from_API(symbol_pair: str, start_date: datetime, end_date: dateti
         data = client.get_historical_klines(symbol_pair, client.KLINE_INTERVAL_1DAY, start_date.strftime(
             "%d %b %Y %H:%M:%S"), end_date.strftime("%d %b %Y %H:%M:%S"))
     except BinanceAPIException as e:
-        print(f'{symbol_pair} is not available on Binance')
+        logger.info(f'{symbol_pair} is not available on Binance')
+        logger.info(f'Error {e}')
         return None
     else:
         data_df = pd.DataFrame(data, columns=['Date', 'Open', 'High', 'Low', 'Close',

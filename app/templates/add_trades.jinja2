@@ -7,118 +7,153 @@
 <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/dropzone/5.7.1/min/dropzone.min.css">
 <script>
     //dynamically adds new rows for trade when add trade button clicked
-    $(document).ready(function(){
-        $('.outer').on('click', '.add_trade', function(){
+    $(document).ready(function () {
+        $('.outer').on('click', '.add_trade', function () {
             var new_html = `
-            <input type='date' name='date' class='trade' required id="date">
-            <input type='text' name='ticker' class='trade' required>
-            <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
-            <input type='number' name='price' class='trade' min='-1' step='.000001' required>
-            <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
-            <select name="direction" class='trade' required>
-                <option value="Buy">Buy</option>
-                <option value="Sell">Sell</option>
-                <option value="Div">Dividend</option>
-            </select>
-            <div class='spacer'></div>
+            <div class='trade-row'> 
+                <input type='date' name='date' class='trade' required id="date">
+                <input type='text' name='ticker' class='trade' required>
+                <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
+                <input type='number' name='price' class='trade' min='-1' step='.000001' required>
+                <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
+                <select name="direction" class='trade' required>
+                    <option value="Buy">Buy</option>
+                    <option value="Sell">Sell</option>
+                    <option value="Div">Dividend</option>
+                </select>
+                <button type='button' class='delete_row btn btn-sm btn-danger'>X</button>
+                <div class='spacer'></div>
+            </div>
             `
             $('.input_section').append(new_html);
         });
+        // Delete only the row where the 'X' button is clicked
+        $('.outer').on('click', '.delete_row', function () {
+            $(this).closest('.trade-row').remove();
+        });
     });
+
 
     // sets DropZone options 
     Dropzone.options.uploadtrades = {
         // Prevents Dropzone from uploading dropped files immediately
         autoProcessQueue: false,
         acceptedFiles: ".csv",
-        maxFiles:1,
+        maxFiles: 1,
 
-        init: function() {
+        init: function () {
             this.hiddenFileInput.removeAttribute("multiple");
 
             var submitButton = document.querySelector("#submit-all")
-                uploadtrades = this; // closure
+            uploadtrades = this; // closure
 
-            submitButton.addEventListener("click", function() {
+            submitButton.addEventListener("click", function () {
                 uploadtrades.processQueue(); // Tell Dropzone to process all queued files.
             });
 
-            this.on("addedfile", function() {
-            // Show submit button here and/or inform user to click it.
+            this.on("addedfile", function () {
+                // Show submit button here and/or inform user to click it.
             });
 
             //redirects when file upload is complete
-            this.on("queuecomplete", function(file){
-                window.location = "{{ url_for('load_trades_csv') }}";    
+            this.on("queuecomplete", function (file) {
+                window.location = "{{ url_for('load_trades_csv') }}";
             });
         }
     };
 
 </script>
 <style>
-h2 {text-align: center;}
-p {text-align: center;}
-.inputWrapper{
-    display:grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
-    grid-column-gap:10px;
-    grid-row-gap:5px;
-}
-input{
-    width: 8em;  height: 1.5em;
-}
-label{
-    font-weight:bold;
-}
-.input_section{
-    display:grid;
-    grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
-    grid-column-gap:10px;
-    grid-row-gap:5px;
-}
-.spacer{
-    height:10px;
-}
+    h2 {
+        text-align: center;
+    }
+
+    p {
+        text-align: center;
+    }
+
+    .inputWrapper {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 4fr;
+        grid-column-gap: 10px;
+        grid-row-gap: 5px;
+    }
+
+    input {
+        width: 8em;
+        height: 1.5em;
+    }
+
+    label {
+        font-weight: bold;
+    }
+
+    .trade-row {
+        display: grid;
+        grid-template-columns: 1fr 1fr 1fr 1fr 1fr 1fr 1fr 3fr;
+        grid-column-gap: 10px;
+        grid-row-gap: 5px;
+    }
+
+    .spacer {
+        height: 10px;
+    }
+
+    .delete_row {
+        background - color: red;
+        color: white;
+        font - weight: bold;
+        border: none;
+        padding: 2px 5px;
+        cursor: pointer;
+    }
 </style>
 {% endblock app_styles %}
 
 {% block app_content %}
 <div class="container">
     <h2>Add Trades </h2>
-    <p><i>Add trades individually or upload a CSV in <a href="{{ url_for('static', filename='files/trade_template.csv') }}">this format</a> if you have a lot of trades</i></p>
-    <p></p><div class="outer row"> 
-    <!--Used to anchor jquery updates -->
+    <p><i>Add trades individually or upload a CSV in <a
+                href="{{ url_for('static', filename='files/trade_template.csv') }}">this format</a> if you have a lot of
+            trades</i></p>
+    <p></p>
+    <div class="outer row">
+        <!--Used to anchor jquery updates -->
         <div class="col">
-            <form method ="POST">
+            <form method="POST">
                 <div class="input_section">
-                    <label>Date</label><label>Ticker</label><label>Quantity</label><label>Price</label><label>Fees</label><label>Direction</label>
-                    <div class='spacer'></div>
-                    <input type='date' name='date' class='trade' required id="date">
-                    <input type='text' name='ticker' class='trade' required>
-                    <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
-                    <input type='number' name='price' class='trade' min='-1' step='.000001' required>
-                    <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
-                    <select name="direction" class='trade' required>
-                        <option value="Buy">Buy</option>
-                        <option value="Sell">Sell</option>
-                        <option value="Div">Dividend</option>
-                    </select>
-                    <div class='spacer'></div>    
+                    <div class="trade-row">
+                        <label>Date</label><label>Ticker</label><label>Quantity</label><label>Price</label><label>Fees</label><label>Direction</label><label></label>
+                        <div class='spacer'></div>
+                        <input type='date' name='date' class='trade' required id="date">
+                        <input type='text' name='ticker' class='trade' required>
+                        <input type='number' name='quantity' class='trade' min='0.000001' step='.000001' required>
+                        <input type='number' name='price' class='trade' min='-1' step='.000001' required>
+                        <input type='number' name='fees' class='trade' min='0.0' step='.000001' required>
+                        <select name="direction" class='trade' required>
+                            <option value="Buy">Buy</option>
+                            <option value="Sell">Sell</option>
+                            <option value="Div">Dividend</option>
+                        </select>
+                        <button type='button' class='delete_row btn btn-sm btn-danger'>X</button>
+                        <div class='spacer'></div>
+                    </div>
                 </div>
                 <div class='spacer'></div>
-                <button class="add_trade" type="button">Add row</button>
-                <button class="submit_data" type="submit">Add trades</button>
-                <a href="/"><button type="button">Cancel</button></a>
+                <button class="add_trade btn btn-sm btn-primary" type="button">Add row</button>
+                <button class="submit_data btn btn-sm btn-primary" type="submit">Add trades</button>
+                <a href="/"><button type="button" class="btn btn-sm btn-primary">Cancel</button></a>
             </form>
         </div>
         <div class="col">
             <br>
             <div class="form-group">
-            <form id="uploadtrades" action="{{ url_for('load_trades_csv') }}" method="POST" enctype="multipart/form-data" class="dropzone pf-file">
-            </form>
-            <button id="submit-all">Upload all trades</button>
+                <form id="uploadtrades" action="{{ url_for('load_trades_csv') }}" method="POST"
+                    enctype="multipart/form-data" class="dropzone pf-file form-control-file">
+                </form>
+                <button id="submit-all" class="btn btn-sm btn-primary">Upload all trades</button>
             </div>
         </div>
-    </div>        
+    </div>
 </div>
 {% endblock %}

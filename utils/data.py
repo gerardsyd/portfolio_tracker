@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime
 import logging
 from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
@@ -39,6 +39,7 @@ def get_price_data_ticker(ticker: str, start_date: datetime, end_date: datetime,
     elif ticker_type == 'FUND':
         dl_data = get_fund_data(raw_ticker, start_date, end_date)
     elif ticker_type == 'CRYPTO':
+        currency = 'USD'  # set currency to USD to force USD conversion as base for crypto
         dl_data = get_crypto_price(raw_ticker, start_date, end_date, currency)
     elif ticker_type == 'FX':
         dl_data = get_currency_data(raw_ticker, start_date, end_date)
@@ -181,9 +182,11 @@ def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
         df = yq.Ticker(ticker).history(start=start_date, end=end_date).reset_index()
         df.drop(columns='symbol', inplace=True)  # drop symbol column
         df = df.rename(str.capitalize, axis=1).set_index('Date')
-        if isinstance(df.index, pd.DatetimeIndex):
-            df = df.tz_localize(None)  # remove TZ aware from downloaded data
-            df.index = pd.Index(df.index.date)  # remove times from dowloaded data to get clean dataset
+
+        df.index = pd.to_datetime(df.index)  # set date index to become datetime object
+        df.index = df.index.tz_localize(None)  # remove TZ aware from downloaded data
+        df.index = pd.Index(df.index.date)  # remove times from dowloaded data to get clean dataset
+
         if 'Capital Gains' in df.columns:
             df.drop(columns=["Capital Gains"], inplace=True)
     except KeyError:
@@ -315,7 +318,7 @@ def get_currency(ticker: str) -> str:
         except (RuntimeError, ValueError, ConnectionError):
             currency = "NA"
     elif ticker_type == 'CRYPTO':
-        currency = raw_ticker
+        currency = 'USD'  # set to USD to allow for max compatability and then use FX rates to convert to local currency
     else:
         currency = "NA"
     return str(currency).upper()

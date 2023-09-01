@@ -122,7 +122,7 @@ def load_trades_csv():
             trade_df['Ticker'] = trade_df['Ticker'].str.upper()
             current_user.add_trades(trade_df)
             flash("Loaded successfully", "info")
-        except Exception as e:
+        except Exception:
             logger.debug(
                 f'------------- An error {traceback.print_exc()} occurred ----------------')
             flash("An error occured, try again!", "error")
