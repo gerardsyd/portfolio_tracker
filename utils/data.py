@@ -2,7 +2,6 @@ from datetime import datetime
 import logging
 from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
-import traceback
 
 import investpy
 from json.decoder import JSONDecodeError
@@ -76,10 +75,11 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: 
             all_data = pool.starmap(get_price_data_ticker, zip(
                 tickers, start_dates, end_dates, currency))
             logger.debug('Obtained data, concatenating')
+            all_data, tickers = zip(*[(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty])  # Filter out empty DataFrames and their corresponding tickers
             concat_data = pd.concat(
                 all_data, keys=tickers, names=['Ticker', 'Date'])
     except ValueError as e:
-        raise ValueError('Please provide at least one ticker')
+        raise ValueError(f'Please provide at least one ticker. Error messagE: {e}')
     return concat_data
 
 
