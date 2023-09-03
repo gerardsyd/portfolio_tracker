@@ -330,8 +330,7 @@ def get_date(date: str, offset: str):
             tz = timezone(timedelta(minutes=0))
         else:
             tz = timezone(timedelta(minutes=-int(offset)))
-        as_at_date = pd.to_datetime(
-            'today', utc=True).tz_convert(tz).tz_localize(None)
+        as_at_date = pd.Timestamp.now(tz=timezone.utc).tz_convert(tz).tz_localize(None)
         logger.info(f'Localised datetime is: {as_at_date}')
     else:
         as_at_date = datetime.strptime(date, "%Y-%m-%d")
