@@ -34,10 +34,25 @@ class User(UserMixin, db.Model):
     def __repr__(self):
         return f'<User {self.username} with default currency of {self.default_currency}>'
 
-    def set_password(self, password):
+    def set_password(self, password: str):
+        """
+        Set password for user
+
+        Args:
+            password (string): password for user
+        """
         self.password_hash = generate_password_hash(password)
 
-    def check_password(self, password):
+    def check_password(self, password: str) -> bool:
+        """
+        Checks if password for user is correct
+
+        Args:
+            password (str): string password to check
+
+        Returns:
+            bool: True if password is correct, False if incorrect
+        """
         return check_password_hash(self.password_hash, password)
 
     @login.user_loader
@@ -45,12 +60,27 @@ class User(UserMixin, db.Model):
         return User.query.get(int(id))
 
     def get_trades(self) -> pd.DataFrame:
+        """
+        Gets trades for user
+
+        Returns:
+            pd.DataFrame: dataframe containing all trades for user
+        """
         df = pd.read_sql(self.trades.statement, db.engine, index_col='id')
         df.drop(columns='user_id', inplace=True)
         df.rename(str.capitalize, axis=1, inplace=True)
         return df
 
-    def get_ticker_trades(self, ticker) -> pd.DataFrame:
+    def get_ticker_trades(self, ticker: str) -> pd.DataFrame:
+        """
+        Gets trades for user for a specified ticker
+
+        Args:
+            ticker (str): ticker for which to obtain user trades
+
+        Returns:
+            pd.DataFrame: trades completed by the user for the specified ticker
+        """
         df = pd.read_sql(Trades.query.filter(Trades.user_id == self.id, Trades.ticker == ticker).statement, db.engine)
         if df.empty:
             return None
@@ -601,9 +631,13 @@ class User(UserMixin, db.Model):
                 'close': row['Close'],
                 'adjclose': row['Adjclose'],
                 'volume': row['Volume'],
-                'dividends': row['Dividends'],
-                'splits': row['Splits']
             }
+
+            # Add 'dividends' and 'splits' only if they exist
+            if 'Dividends' in prices.columns:
+                price_data['dividends'] = row['Dividends']
+            if 'Splits' in prices.columns:
+                price_data['splits'] = row['Splits']
             price_data_list.append(price_data)
 
         # Bulk insert/update price data
