@@ -95,7 +95,7 @@ def update_pf():
 
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = web_utils.pandas_table_styler(
-        df, neg_cols=['%LastChange', '$LastChange', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
+        df, neg_cols=['%LastChange', '$LastChange', 'IRR', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
     df_html = web_utils.add_footer(df_html)
     as_at_date = str(as_at_date.date())
     df_html = web_utils.update_links(df_html, currency, as_at_date)

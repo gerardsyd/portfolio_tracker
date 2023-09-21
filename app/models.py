@@ -88,6 +88,13 @@ class User(UserMixin, db.Model):
             return df
 
     def add_trades(self, df: pd.DataFrame, append: bool = True):
+        """
+        Add trades to user
+
+        Args:
+            df (pd.DataFrame): dataframe taking trades for user
+            append (bool, optional): If true, append to existing trades, otherwise replace. Defaults to True.
+        """
         if append:
             # If append is true, get existing trades and append passed df to existing trades
             exist_df = self.get_trades()
@@ -128,6 +135,9 @@ class User(UserMixin, db.Model):
             logger.debug(f'-------------- Exception {traceback.print_exc()} --------------')
 
     def drop_trades(self):
+        """
+        Drops all trades for user
+        """
         Trades.query.filter_by(user_id=self.id).delete()
         db.session.commit()
 
@@ -291,7 +301,17 @@ class User(UserMixin, db.Model):
             hist_pos = self.calculate_gains(hist_pos, start_date)  # Calculate gains and losses
         return hist_pos
 
-    def adjust_for_splits(self, hist_pos, splits):
+    def adjust_for_splits(self, hist_pos: pd.DataFrame, splits: List) -> pd.DataFrame:
+        """
+        Adjusts hist_pos for splits based on splits list
+
+        Args:
+            hist_pos (pd.DataFrame): dataframe with historical positions of each trade / stock
+            splits (List): List of splits with date and split
+
+        Returns:
+            pd.DataFrame: hist_post dataframe with quantity and price updated for splits
+        """
         for split in splits:
             hist_pos['Quantity'] = np.where(
                 (hist_pos['Date'] <= split.date) & (hist_pos['Ticker'] == split.ticker),
@@ -303,7 +323,17 @@ class User(UserMixin, db.Model):
                 hist_pos['Price'])
         return hist_pos
 
-    def add_dividends(self, hist_pos, divs):
+    def add_dividends(self, hist_pos: pd.DataFrame, divs: List) -> pd.DataFrame:
+        """
+        Adjusts hist_pos for dividends based on dividends list
+
+        Args:
+            hist_pos (pd.DataFrame): dataframe with historical positions of each trade / stock
+            divs (List): List of dividends with date and quantity of dividends
+
+        Returns:
+            pd.DataFrame: hist_post dataframe updated for dividend data
+        """
         for dividend in divs:
             dt_div = hist_pos[(hist_pos['Date'] <= dividend.date) & (hist_pos['Ticker'] == dividend.ticker)]['Date'].index
             if not dt_div.empty:
@@ -326,7 +356,17 @@ class User(UserMixin, db.Model):
                     hist_pos.sort_values(['Ticker', 'Date'], inplace=True)
         return hist_pos
 
-    def calculate_gains(self, hist_pos, start_date):
+    def calculate_gains(self, hist_pos: pd.DataFrame, start_date: datetime) -> pd.DataFrame:
+        """
+        Calculate realised and unrealised capital gains from  start_date
+
+        Args:
+            hist_pos (pd.DataFrame): dataframe with historical positions of each trade / stock
+            start_date (datetime): Date as at which to calculate limit capital gains and dividends calculations(i.e. will return capital gains and dividends between start_date and as_at_date)
+
+        Returns:
+            pd.DataFrame: Updated hist_pos dataframe including capital gains information
+        """
         hist_pos['CF'] = np.where(hist_pos.Direction == 'Buy', -1, 1) * (hist_pos.Quantity * hist_pos.Price * hist_pos.Fx) - (hist_pos.Fees * hist_pos.Fx)
         hist_pos['CFBuy'] = np.where(hist_pos.Direction == 'Buy', hist_pos.CF, 0)
         hist_pos['CumCost'] = hist_pos.groupby('Ticker', group_keys=False)['CFBuy'].cumsum()
@@ -451,6 +491,17 @@ class User(UserMixin, db.Model):
         return curr_p
 
     def _current_prices(self, tickers: List[str], as_at_dates: List[datetime], columns: List[str]) -> pd.DataFrame:
+        """
+        Internal method. Gets the latest prices for tickers as at the given date. If last_change is true, also returns the change in price from the previous price for a given ticker
+
+        Args:
+            tickers (List): List of tickers for which to get current prices
+            as_at_date (datetime): Date at which to generate prices
+            columns (List): list of columns for returned dataframe
+
+        Returns:
+            pd.DataFrame: Dataframe with required columns with current prices in database
+        """
         COL_TYPES = {
             'Ticker': 'str',
             'Open': 'float',
@@ -508,6 +559,15 @@ class User(UserMixin, db.Model):
 
     @staticmethod
     def calc_avg_price(df: pd.DataFrame) -> pd.DataFrame:
+        """
+        Calculate average cost price for each group of shares bought / sold
+
+        Args:
+            df (pd.DataFrame): dataframe with trades
+
+        Returns:
+            pd.DataFrame: dataframe which includes the average price calculated
+        """
         # create group for each group of shares bought / sold
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(0)
         avg_price_df = df.groupby('grouping', as_index=False).apply(lambda x: x.CFBuy.sum() / x.QBuy.sum()).reset_index(drop=True)
@@ -533,6 +593,21 @@ class User(UserMixin, db.Model):
         return df
 
     def price_history(self, ticker: str, start_date: datetime, as_at_date: datetime, period: str) -> Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]:
+        """
+        Provides price history for a given ticker between start date and end date and resampled based on period
+
+        Args:
+            ticker (str): Ticker for stock data to return
+            start_date (datetime): start date for stock data
+            as_at_date (datetime): end date for stock data
+            period (str): A, M or D representing annual, monthly or daily price data
+
+        Raises:
+            ValueError: If period is not entered correctly, raises value error
+
+        Returns:
+            Union[pd.DataFrame, pd.DataFrame, pd.DataFrame]: price history dataframe, dividend data dataframe and splts dataframe
+        """
         logger.info(f'********************{ticker}*************************')
         prices_df = pd.read_sql(StockPrices.query.filter(StockPrices.ticker == ticker).statement, db.engine).rename(str.capitalize, axis=1)
 
@@ -581,6 +656,17 @@ class User(UserMixin, db.Model):
         return p_hist_df, div_df, split_df
 
     def update_prices(self, as_at_date: datetime, tickers: List = None, min_days: int = -1) -> pd.DataFrame:
+        """
+        Update prices for tickers in the database up to as_at_date with lookback for min_days. This function will also update the prices database
+
+        Args:
+            as_at_date (datetime): Date as at which to obtain prices for tickers
+            tickers (List, optional): List of tickers for which to update prices. Defaults to None. If None is passed, get unique ticker list from user's trades and obtain prices for those tickers
+            min_days (int, optional): Buffer of days to look back past previous trade data. -1 is suggested to ensure that close prices are accurate and mid-day prices are not being used. Defaults to -1.
+
+        Returns:
+            pd.DataFrame: dataframe with updated prices for all tickers for the given time period
+        """
         start = datetime.now()
         if tickers is None:
             tickers = list(self.get_trades()['Ticker'].unique())
@@ -744,6 +830,7 @@ class StockPrices(db.Model):
 
     @prev_close.expression
     def prev_close(cls):
+        """Calculate the previous close price for this ticker"""
         max_date = select(StockPrices.date) \
             .where(StockPrices.ticker == cls.ticker) \
             .where(StockPrices.date < cls.date) \

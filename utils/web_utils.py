@@ -9,8 +9,6 @@ import plotly.express as px
 import plotly.graph_objs as go
 import plotly.io as pio
 
-from app.portfolio import Portfolio
-
 TD_TYPE_DICT = {'Date': 'date', 'Ticker': 'text', 'Quantity': 'number',
                 'Price': 'number', 'Fees': 'number', 'Direction': 'text'}
 PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
@@ -92,6 +90,19 @@ def neg_red(val: float):
     return 'color: %s' % color
 
 
+def format_with_parentheses(val: float):
+    """
+    Takes a value and returns #,###.00 for positive numbers and (#,###0.00) for negative numbers
+    """
+    if val < 0:
+        return '{:,.2f}'.format(val).replace('-', '(') + ')'
+    elif val > 0:
+        return '{:,.2f}'.format(val)
+    else:
+        # catch Na / NaN / strings / empty fields and return the val with no formatting
+        return str(val)
+
+
 def stock_link(value: str):
     return f'<a href="/stock/{value}">{value}</a>'
 
@@ -105,8 +116,9 @@ def update_links(html: str, currency: str, date: str):
 
 def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List, ticker_links: bool, uuid: str):
     df_html = (df.style
-               .applymap(neg_red, subset=neg_cols)
                .format(PF_FORMAT_DICT, na_rep="--")
+               .map(neg_red, subset=neg_cols)
+               #    .map(format_with_parentheses, subset=neg_cols)
                .set_properties(**{'text-align': 'left'}, subset=left_align_cols)
                .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
                .hide(axis="index")
