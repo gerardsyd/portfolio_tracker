@@ -258,9 +258,7 @@ class Portfolio():
         # add dividend information
         hist_pos.drop(columns=['Pf_price', 'Pf_shares'], inplace=True)
         for ticker in hist_pos['Ticker'].unique():
-            dividends = div_df[(div_df['Ticker'] == ticker)
-                               & (div_df['Date'] >= start_date)
-                               & (div_df['Date'] <= as_at_date)].copy()
+            dividends = div_df[(div_df['Ticker'] == ticker) & (div_df['Date'] >= start_date) & (div_df['Date'] <= as_at_date)].copy()
 
             if not dividends.empty:
                 # add dividend info if shares held when dividends paid
@@ -275,7 +273,7 @@ class Portfolio():
                                                                     row['Dividends'], 0, 'Div', (div_qty * row['Dividends']), 0, div_qty]], columns=hist_pos.columns), ignore_index=True)
                             hist_pos.sort_values(
                                 ['Ticker', 'Date'], inplace=True)
-                    except (ValueError, IndexError) as e:
+                    except (ValueError, IndexError):
                         logger.debug(traceback.print_exc())
                         pass  # do nothing if no shares are held during dividend period
 
@@ -559,8 +557,7 @@ class Portfolio():
 
         for idx, row in p_hist_df.iterrows():
             try:
-                pos_at_date = hist_df[hist_df['Date']
-                                      <= row['Date']].iloc[-1]
+                pos_at_date = hist_df[hist_df['Date'] <= row['Date']].iloc[-1]
                 p_hist_df.loc[idx, 'Quantity'] = pos_at_date['CumQuan']
                 p_hist_df.loc[idx, 'AvgCost'] = pos_at_date['AvgCost']
                 p_hist_df.loc[idx, 'Dividends'] = pos_at_date['CumDiv']
