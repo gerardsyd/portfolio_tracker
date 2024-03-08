@@ -75,11 +75,14 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: 
             all_data = pool.starmap(get_price_data_ticker, zip(
                 tickers, start_dates, end_dates, currency))
             logger.debug('Obtained data, concatenating')
-            all_data, tickers = zip(*[(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty])  # Filter out empty DataFrames and their corresponding tickers
+            # Filter out empty DataFrames and their corresponding tickers
+            all_data, tickers = zip(
+                *[(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty])
             concat_data = pd.concat(
                 all_data, keys=tickers, names=['Ticker', 'Date'])
     except ValueError as e:
-        raise ValueError(f'Please provide at least one ticker. Error messagE: {e}')
+        raise ValueError(
+            f'Please provide at least one ticker. Error messagE: {e}')
     return concat_data
 
 
@@ -186,7 +189,7 @@ def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.Dat
 
 def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
     """
-    Gets price data for ticker for specified period from yfinance
+    Gets price data for ticker for specified period from yahooquery
 
     Args:
         ticker (str): String ticker in format that is acceptable to Yahoo Finance
@@ -197,13 +200,17 @@ def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
         pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for ticker from start_date to end_date
     """
     try:
-        df = yq.Ticker(ticker).history(start=start_date, end=end_date).reset_index()
+        df = yq.Ticker(ticker).history(
+            start=start_date, end=end_date).reset_index()
         df.drop(columns='symbol', inplace=True)  # drop symbol column
         df = df.rename(str.capitalize, axis=1).set_index('Date')
 
-        df.index = pd.to_datetime(df.index)  # set date index to become datetime object
-        df.index = df.index.tz_localize(None)  # remove TZ aware from downloaded data
-        df.index = pd.Index(df.index.date)  # remove times from dowloaded data to get clean dataset
+        # set date index to become datetime object
+        df.index = pd.to_datetime(df.index)
+        # remove TZ aware from downloaded data
+        df.index = df.index.tz_localize(None)
+        # remove times from dowloaded data to get clean dataset
+        df.index = pd.Index(df.index.date)
 
         if 'Capital Gains' in df.columns:
             df.drop(columns=["Capital Gains"], inplace=True)
