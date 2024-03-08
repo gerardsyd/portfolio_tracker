@@ -765,8 +765,9 @@ class Stocks(db.Model):
     def __repr__(self):
         return f'<{self.ticker}: {self.name} and quoted in {self.currency} and last updated on {self.last_updated}>'
 
-    def update_name(self):
-        name = data.get_name(self.ticker)
+    def update_name(self, name: str = None):
+        if name is None:
+            name = data.get_name(self.ticker)
         if name is None:
             self.name = "NA"
         else:
