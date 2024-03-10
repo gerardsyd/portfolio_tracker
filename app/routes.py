@@ -3,7 +3,7 @@ import logging
 from os import path
 import traceback
 
-from flask import flash, render_template, request, redirect, url_for
+from flask import flash, jsonify, render_template, request, redirect, url_for
 from flask.globals import current_app
 from flask.helpers import make_response
 from flask_login import current_user, login_user, logout_user
@@ -14,7 +14,7 @@ from werkzeug.urls import url_parse
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, UpdateDetailsForm
-from app.models import User
+from app.models import User, Stocks
 from utils import web_utils
 
 logger = logging.getLogger('pt_logger')
@@ -193,7 +193,10 @@ def view_trades():
 @ login_required
 def stock(ticker: str):
     # currency = request.args.get('currency')
-    as_at_date = get_date(request.args.get('date'), request.form.get('time_offset'))
+    stock = Stocks.query.filter_by(ticker=ticker).first()
+    name = stock.name
+    as_at_date = get_date(request.args.get(
+        'date'), request.form.get('time_offset'))
     logger.info('Loading trades from db')
     pf_trades = current_user.get_trades()
     start_date = pf_trades[pf_trades['Ticker'] == ticker]['Date'].min()
@@ -205,7 +208,18 @@ def stock(ticker: str):
     position = pio.to_html(
         position_fig, include_plotlyjs='cdn', full_html=False)
 
-    return render_template('stock_dynamic.jinja2', title=f'Overview for {ticker}', stock_name=ticker, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades)
+    return render_template('stock_dynamic.jinja2', title=f'Overview for {name}', stock_name=name, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades, ticker=ticker)
+
+
+@app.route('/update_stock_name', methods=['POST'])
+@login_required
+def update_stock_name():
+    new_name = request.form.get('new_name')
+    ticker = request.form.get('ticker')
+    stock = Stocks.query.filter_by(ticker=ticker).first()
+    logger.info(stock)
+    stock.update_name(new_name)
+    return jsonify({'status': 'success'}), 200
 
 
 @app.route('/pfactions', methods=['GET', 'POST'])
@@ -330,7 +344,8 @@ def get_date(date: str, offset: str):
             tz = timezone(timedelta(minutes=0))
         else:
             tz = timezone(timedelta(minutes=-int(offset)))
-        as_at_date = pd.Timestamp.now(tz=timezone.utc).tz_convert(tz).tz_localize(None)
+        as_at_date = pd.Timestamp.now(
+            tz=timezone.utc).tz_convert(tz).tz_localize(None)
         logger.info(f'Localised datetime is: {as_at_date}')
     else:
         as_at_date = datetime.strptime(date, "%Y-%m-%d")

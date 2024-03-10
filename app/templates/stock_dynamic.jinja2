@@ -1,59 +1,114 @@
 {% extends 'base.jinja2' %}
-{% block app_head %}
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.css"/>
-<script type="text/javascript" src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.js"></script>
+{% block app_styles %}
+<link rel="stylesheet" type="text/css"
+    href="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.css" />
+<style>
+    div {
+        max-width: 800px
+    }
+</style>
+{% endblock %}
+
+{% block app_scripts %}
+<script type="text/javascript"
+    src="https://cdn.datatables.net/v/dt/jq-3.3.1/dt-1.10.21/fh-3.1.7/datatables.min.js"></script>
 <script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
 <script>
 
-$(document).ready( function () {
-    var nameType = $.fn.dataTable.absoluteOrder( {
-        value: 'nan', position: 'bottom'
-    } );
-    $('#T_stock').DataTable({
-        paging: false,
-        autoWidth: false,
-        searching: false,
-        fixedHeader: {
+    $(document).ready(function () {
+
+        // set up data table for stock trades
+        /*        var nameType = $.fn.dataTable.absoluteOrder({
+                    value: 'nan', position: 'bottom'
+                });
+                $('#T_stock').DataTable({
+                    paging: false,
+                    autoWidth: false,
+                    searching: false,
+                    fixedHeader: {
         
-        },
-        columnDefs: [
-        { targets: [2,3,4,5,6,7,8,9,10,11,12,13,14,15,16,17,18,19], type: "num-fmt" },
-        ]
+                    },
+                    columnDefs: [
+                        { targets: [2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 14, 15, 16, 17, 18, 19], type: "num-fmt" },
+                    ]
+                });
+                */
+
+        // set up edit button for stock name
+        $("#editButton").click(function () {
+            $("#stockName").hide();
+            $("#editButton").hide();
+            $("#stockNameInput").show();
+            $("#confirmButton").show();
+            $("#cancelButton").show();
+        });
+
+        // set up cancel button for stock name
+        $("#cancelButton").click(function () {
+            $("#stockName").show();
+            $("#editButton").show();
+            $("#stockNameInput").hide();
+            $("#confirmButton").hide();
+            $("#cancelButton").hide();
+        });
+
+        // set up cancel button for stock name
+        $("#confirmButton").click(function () {
+            var newStockName = $("#stockNameInput").val();
+            $.ajax({
+                url: '/update_stock_name',
+                data: { 'new_name': newStockName, 'ticker': '{{ticker}}' },
+                type: 'POST',
+                success: function (response) {
+                    $("#stockName").text(newStockName);
+                    $("#stockName").show();
+                    $("#editButton").show();
+                    $("#stockNameInput").hide();
+                    $("#confirmButton").hide();
+                    $("#cancelButton").hide();
+                },
+                error: function (error) {
+                    console.log(error);
+                }
+            });
+        });
     });
-} );
-table#T_stock.dataTable {font-size:15px}
-table#T_stock.dataTable tbody tr:hover {background-color: #dff}
-table#T_stock.dataTable tbody tr:hover > .sorting_1 {background-color: #dff}
+    /*
+    table#T_stock.dataTable { font - size: 15px }
+    table#T_stock.dataTable tbody tr:hover { background - color: #dff }
+    table#T_stock.dataTable tbody tr: hover > .sorting_1 { background - color: #dff } #
+    */
 </script>
-<style>
-div{
-    max-width: 800px
-}
-</style>
 {% endblock %}
 
 {% block app_content %}
 <div class="container">
-<h2>Stock: {{stock_name}}</h2>
+    <h2>
+        Stock: <span id="stockName">{{stock_name}}</span>
+        <i id="editButton" class="fa fa-pencil"></i>
+        <input id="stockNameInput" type="text" style="display: none;" value="{{stock_name}}">
+        <i id="confirmButton" class="fa fa-check" style="display: none;"></i>
+        <i id="cancelButton" class="fa fa-times" style="display: none;"></i>
+    </h2>
 
-<p>
-<h3>Trades</h3>
-<div><b>{{trades}}</b></div>
-<p>
+    <p>
+    <h3>Trades</h3>
+    <div><b>{{trades}}</b></div>
+    <p>
 
-<p> 
-<h3>Historical position</h3>
-<div><b>{{postition_df}}</b></div>
-<p>
+    <p>
+    <h3>Historical position</h3>
+    <div><b>{{postition_df}}</b></div>
+    <p>
 
-<p> 
-<h3>Dividends</h3>
-<div><b>{{divs}}</b></div>
-<p>
+    <p>
+    <h3>Dividends</h3>
+    <div><b>{{divs}}</b></div>
+    <p>
 
-<p> 
-<h3>Splits</h3>
-<div><b>{{splits}}</b></div>
-<p>
-<div>
-{% endblock %}
+    <p>
+    <h3>Splits</h3>
+    <div><b>{{splits}}</b></div>
+    <p>
+    <div>
+        {% endblock %}
