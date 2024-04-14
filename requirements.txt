@@ -11,7 +11,7 @@ cryptography==3.3.1
 dateparser==1.0.0
 flask==1.1.2
 hyperlink==20.0.1
-idna==2.10
+idna==3.7
 incremental==17.5.0
 investpy==1.0
 itsdangerous==2.0.0a1
