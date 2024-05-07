@@ -40,6 +40,6 @@ txaio==20.12.1
 tzlocal==3.0b1
 unidecode==1.1.2
 urllib3==1.25.11
-werkzeug==1.0.1
+werkzeug==3.0.3
 yfinance==0.1.54
 zope.interface==5.2.0
