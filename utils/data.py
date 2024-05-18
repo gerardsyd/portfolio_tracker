@@ -292,7 +292,7 @@ def get_name(ticker: str) -> str:
             name = stock.quote_type[ticker]['longName']
         except (IndexError, KeyError, Exception, ValueError, AttributeError) as e:
             logger.info(f'-------  Ticker name {ticker} not found -------')
-            logger.debug(f'-------  Error is {e} -------')
+            logger.exception(f'-------  Error is {e} -------', stack_info=True)
             name = "NA"
     elif ticker_type == 'FUND':
         try:
@@ -372,4 +372,4 @@ def get_currency_data(ticker: str, start_date: datetime, end_date: datetime) -> 
 
 
 if __name__ == '__main__':
-    print(get_name('GMVD'))
+    print(get_name('SQ'))

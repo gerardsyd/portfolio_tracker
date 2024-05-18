@@ -84,9 +84,10 @@ websockets = "==11.0.3"
 werkzeug = "==2.3.7"
 wsproto = "==1.2.0"
 wtforms = "==3.0.1"
-yahooquery = "==2.3.2"
+yahooquery = "*"
 yarl = "==1.9.2"
 yfinance = "==0.2.28"
+xlsxwriter = "*"
 
 [dev-packages]
 ipykernel = "*"
