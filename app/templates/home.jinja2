@@ -38,25 +38,28 @@
     <h2>Portfolio for {{ current_user.username }}</h2>
     <label> Portfolio actions:</label>
     <form action="/pfactions" method="post">
-        <div class="row">
-            <div class="col-sm"><input type="submit" name="action" value="Export to CSV"></div>
+        <div class="row align-items-center">
+            <div class="col-sm"><input type="submit" name="action" value="Export to CSV" class="btn btn-primary"></div>
         </div>
-        <div class="row">
+        <p></p>
+        <div class="row align-items-center">
             <div class="col-sm">
-                <input type="date" name="date" id="date">
+                <input type="date" name="date" id="date" class="form-control">
                 <input type="hidden" name="time_offset" id="time_offset" value="0">
             </div>
             <div class="col-sm">
-                <input type="checkbox" id="hide_zero" name="hide_zero" value="True"> Show zero balances?
+                <input type="checkbox" id="hide_zero" name="hide_zero" value="True" class="form-check-input">
+                Show zero balances?
             </div>
             <div class="col-sm">
-                <input type="checkbox" id="no_update" name="no_update" value="True" checked> Update prices?
+                <input type="checkbox" id="no_update" name="no_update" value="True" class="form-check-input" checked>
+                Update prices?
             </div>
             <div class="col-sm">
                 Currency: {{ current_user.default_currency }}
             </div>
             <div class="col-sm">
-                <input type="submit" name="action" value="Refresh">
+                <input type="submit" name="action" value="Refresh" class="btn btn-primary">
             </div>
         </div>
     </form>
