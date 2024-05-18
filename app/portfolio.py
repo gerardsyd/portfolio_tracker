@@ -258,7 +258,8 @@ class Portfolio():
         # add dividend information
         hist_pos.drop(columns=['Pf_price', 'Pf_shares'], inplace=True)
         for ticker in hist_pos['Ticker'].unique():
-            dividends = div_df[(div_df['Ticker'] == ticker) & (div_df['Date'] >= start_date) & (div_df['Date'] <= as_at_date)].copy()
+            dividends = div_df[(div_df['Ticker'] == ticker) & (
+                div_df['Date'] >= start_date) & (div_df['Date'] <= as_at_date)].copy()
 
             if not dividends.empty:
                 # add dividend info if shares held when dividends paid

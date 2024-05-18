@@ -13,7 +13,7 @@ TD_TYPE_DICT = {'Date': 'date', 'Ticker': 'text', 'Quantity': 'number',
                 'Price': 'number', 'Fees': 'number', 'Direction': 'text'}
 PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2%}', '%UnRlGain': '{:,.2%}', '%PF': '{:,.2%}', '%CostPF': '{:,.2%}',
                   'LastPrice': '{:,.2f}', 'CurrVal': '{:,.2f}', 'AvgCost': '{:,.2f}', 'Cost': '{:,.2f}', 'RlGain': '{:,.2f}', 'UnRlGain': '{:,.2f}',
-                  'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}'}
+                  'Dividends': '{:,.2f}', 'TotalGain': '{:,.2f}', '$LastChange': '{:,.2f}', 'CashFlow': '{:,.2f}'}
 pio.templates.default = "plotly_white"
 
 logger = logging.getLogger('pt_logger.web_utils')

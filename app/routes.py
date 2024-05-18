@@ -1,4 +1,5 @@
 from datetime import datetime, timedelta, timezone
+from io import BytesIO
 import logging
 from os import path
 import traceback
@@ -86,7 +87,8 @@ def update_pf():
     start = datetime.now()
     if not no_update:
         current_user.update_prices(as_at_date=as_at_date)
-    df = current_user.info_date(as_at_date=as_at_date, hide_zero_pos=hide_zero)
+    df, _ = current_user.info_date(
+        as_at_date=as_at_date, hide_zero_pos=hide_zero)
     logger.info(f'info_date took {(datetime.now()-start)} to run')
 
     start = datetime.now()
@@ -239,7 +241,8 @@ def exportpf():
     hide_zero = not (bool(request.form.get('hide_zero'))) or False
     # currency = request.form.get('currency') or 'AUD'
 
-    df = current_user.info_date(as_at_date=as_at_date, hide_zero_pos=hide_zero)
+    df, _ = current_user.info_date(
+        as_at_date=as_at_date, hide_zero_pos=hide_zero)
     resp = make_response(df.to_csv(index=False))
     resp.headers.set("Content-Disposition",
                      "attachment", filename="pf_position.csv")
@@ -287,23 +290,46 @@ def profile(username):
 
 
 def exportpftax(title: str):
-    df = get_tax_df(title)
-    resp = make_response(df.to_csv(index=False))
+    df, trades_df = get_tax_df(title)
+
+    # Create a Pandas Excel writer using XlsxWriter as the engine.
+    output = BytesIO()
+    writer = pd.ExcelWriter(output, engine='xlsxwriter')
+
+    # Write each dataframe to a different worksheet.
+    df.to_excel(writer, sheet_name='Summary', index=False)
+    trades_df.to_excel(writer, sheet_name='Trades', index=False)
+
+    # Close the Pandas Excel writer and output the Excel file.
+    writer.close()
+    output.seek(0)
+
+    resp = make_response(output.getvalue())
     resp.headers.set("Content-Disposition",
-                     "attachment", filename="pf_position.csv")
+                     "attachment", filename="tax_trades.xlsx")
+    # resp.headers.set("Content-Disposition",
+    #                  "attachment", filename="pf_position.csv")
     return resp
 
 
 def taxoutput(title: str):
-    df = get_tax_df(title)
+    df, trades_df = get_tax_df(title)
     if df.empty:
         df_html = "<p><div class='alert alert-primary' role='alert'> No dividends or capital gains in period</div>"
+        trades_df_html = "<p>"
     else:
         df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
         df_html = web_utils.pandas_table_styler(
             df, neg_cols=['RlGain'], left_align_cols=['Ticker', 'Name'], ticker_links=False, uuid='taxsummary')
         df_html = web_utils.add_footer(df_html)
-    return render_template('tax.jinja2', tables=df_html, title=title)
+
+        trades_df['Date'] = trades_df['Date'].dt.strftime('%d-%m-%y')
+        trades_df_html = web_utils.pandas_table_styler(
+            trades_df, neg_cols=['CashFlow'], left_align_cols=['Ticker'], ticker_links=False, uuid='taxtrades')
+        # trades_df_html = web_utils.add_footer(df_html)
+    logger.info(df_html)
+    logger.info(trades_df_html)
+    return render_template('tax.jinja2', tables=[df_html, trades_df_html], title=title)
 
 
 def get_tax_df(title: str):
@@ -312,22 +338,45 @@ def get_tax_df(title: str):
     end_date = get_date(request.form.get(
         'end_date'), None)
 
+    logger.info(f'{start_date=}, {end_date=}')
     hide_zero = False
     # currency = 'AUD'
 
     pf_trades = current_user.get_trades()
     if pf_trades.empty:
         flash('Portfolio is empty. Please add some trades', 'error')
-        return render_template('home.jinja2', title="Overview")
+        return render_template('home.jinja2', title=title)
 
-    df = current_user.info_date(
-        start_date=start_date, as_at_date=end_date, hide_zero_pos=hide_zero)
+    df, trades = current_user.info_date(
+        start_date=start_date, as_at_date=end_date, hide_zero_pos=hide_zero, limit_divs_by_date=True)
+    trades = trades[['Date', 'Ticker', 'Quantity',
+                     'Price', 'Fees', 'CF', 'Direction']]
 
     # restrict output to stocks where there was a tax event in the period (i.e. dividends or capital gains)
     df = df[(df['RlGain'] != 0) | (df['Dividends'] != 0)].copy()
     df = df[['Ticker', 'Name', 'CurrVal', 'Dividends', 'RlGain', 'Date', 'Type']]
 
-    return df
+    logger.info(df)
+
+    trades_df = pd.DataFrame()
+    for index, row in df.iterrows():
+        if row['Ticker'] != 'Total':
+            ticker_trades = trades[trades['Ticker'] == row['Ticker']]
+            # logger.info(ticker_trades)
+            if row['Dividends'] != 0:
+                ticker_trades_divs = ticker_trades[(ticker_trades['Date'] >= start_date) & (
+                    ticker_trades['Date'] <= end_date) & (ticker_trades['Direction'] == 'Div')]
+                trades_df = pd.concat(
+                    [trades_df, ticker_trades_divs])
+            if row['RlGain'] != 0:
+                ticker_trades_gains = ticker_trades[(ticker_trades['Date'] <= end_date) & (
+                    ticker_trades['Direction'].isin(['Buy', 'Sell']))]
+                trades_df = pd.concat(
+                    [trades_df, ticker_trades_gains])
+    logger.info(trades_df)
+    trades_df.rename(columns={'CF': 'CashFlow'}, inplace=True)
+
+    return df, trades_df
 
 
 def get_date(date: str, offset: str):
@@ -353,4 +402,4 @@ def get_date(date: str, offset: str):
 
 
 if __name__ == '__main__':
-    app.run(debug=False, use_reloader=True)
+    app.run(debug=True, use_reloader=True)
