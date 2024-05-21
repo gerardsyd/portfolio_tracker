@@ -156,7 +156,7 @@ def create_fig2(df: pd.DataFrame, height: int, hover: List):
         xaxis_title='Date', height=height
     )
     hoverdata = np.dstack([df[col] for col in hover])
-    print(hoverdata)
+    logger.debug(hoverdata)
     trace_CurrVal = go.Scatter(
         x=df['Date'], y=df['CurrVal'], name="Current Value", customdata=hoverdata, hovertemplate=['%{hover[i]}:%{hoverdata[i]:.2f} <br>' for i in range(0, len(hover))])
     trace_TotalGain = go.Scatter(

@@ -163,7 +163,7 @@ def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.Dat
         from utils.custom_funds import get_custom_fund_data
         df = get_custom_fund_data(isin, start_date, end_date)
     except ImportError:
-        print('No custom funds module available')
+        logger.error('No custom funds module available')
 
     # If not data loaded from custom funds, try investpy
     if not isinstance(df, pd.DataFrame):

@@ -296,8 +296,6 @@ class User(UserMixin, db.Model):
         # set up column in order of INFO_COLUMNS
         info_df = info_df[INFO_COLUMNS]
         logger.info(f'Clean up data took {(datetime.now()-start)} to run')
-
-        logger.debug(hist_trades.info())
         return info_df, hist_trades
 
     def hist_positions(self, start_date: datetime, as_at_date: datetime, splits: List, divs: List, tickers: List = None, include_dividends: bool = True, calculate_gains: bool = True, limit_divs_by_date: bool = False) -> pd.DataFrame:
@@ -790,7 +788,6 @@ class User(UserMixin, db.Model):
                                      self.default_currency] * len(df['ticker'])).reset_index()
         prices = prices.replace(np.NaN, None)
 
-        start1 = datetime.now()
         # iterate through rows in prices to update SQL database with updated prices where already existing or to append new data
         price_data_list = []
         for _, row in prices.iterrows():
@@ -813,7 +810,6 @@ class User(UserMixin, db.Model):
             price_data_list.append(price_data)
 
         # Bulk insert/update price data
-        start1 = datetime.now()
         stmt = insert(StockPrices).values(price_data_list)
         update_cols = {c.name: c for c in StockPrices.__table__.columns if c.name not in {
             'ticker', 'date'}}
@@ -821,7 +817,6 @@ class User(UserMixin, db.Model):
             {key: getattr(stmt.inserted, key) for key in update_cols})
         db.session.execute(on_duplicate_key_stmt)
         db.session.commit()
-        print(f'DB update took {datetime.now() - start1} to run')
 
         logger.info(f'price update took {(datetime.now()-start)} to run')
         return prices
