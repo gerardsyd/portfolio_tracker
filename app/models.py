@@ -216,7 +216,7 @@ class User(UserMixin, db.Model):
             divs = StockPrices.query.filter(
                 StockPrices.ticker.in_(tickers),
                 StockPrices.dividends != 0).order_by(StockPrices.date.asc()).all()
-        logger.info(divs)
+        logger.debug(divs)
         logger.info(
             f'Splits and divs data took {(datetime.now()-start)} to run')
 
@@ -297,7 +297,7 @@ class User(UserMixin, db.Model):
         info_df = info_df[INFO_COLUMNS]
         logger.info(f'Clean up data took {(datetime.now()-start)} to run')
 
-        logger.info(hist_trades.info())
+        logger.debug(hist_trades.info())
         return info_df, hist_trades
 
     def hist_positions(self, start_date: datetime, as_at_date: datetime, splits: List, divs: List, tickers: List = None, include_dividends: bool = True, calculate_gains: bool = True, limit_divs_by_date: bool = False) -> pd.DataFrame:
@@ -329,7 +329,7 @@ class User(UserMixin, db.Model):
             hist_pos = hist_pos[hist_pos['Ticker'].isin(tickers)].copy()
         hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
 
-        logger.info(hist_pos[hist_pos['Direction'] == 'Div'])
+        logger.debug(hist_pos[hist_pos['Direction'] == 'Div'])
 
         # Adjust hist_pos for splits and get quantities at each point along with cumulative quantities
         hist_pos = self.adjust_for_splits(hist_pos, splits)
