@@ -215,20 +215,10 @@ def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
         if 'Capital Gains' in df.columns:
             df.drop(columns=["Capital Gains"], inplace=True)
         df.index.names = ['Date']
-    except KeyError:
-        df = None
-    except RuntimeError:
-        logger.debug(
-            f'-------  Yahoo! Finance is not working (ticker: {ticker}) -------')
-        df = None
-    except ConnectionError:
-        logger.debug(
-            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
-        df = None
-    except JSONDecodeError as e:
-        logger.debug(
-            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
-        logger.debug(e)
+    except (KeyError, RuntimeError, ConnectionError, JSONDecodeError, TimeoutError) as e:
+        error_type = e.__class__.__name__
+        logger.error(
+            f'-------  {error_type} with Yahoo! Finance (ticker: {ticker}) -------', exc_info=True)
         df = None
     return df
 
