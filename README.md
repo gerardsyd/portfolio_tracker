@@ -3,6 +3,13 @@ Tracks stock, funds, crypto asset portfolio including gains / losses, dividends 
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
 
+## Update 29 May 2024
+- Minor fixes including checks for empty date frames, update_prices, docstrings
+- Added ability to edit names in individual stock pages
+- Updated tax page to add transactions and formatting
+- Better error handling when updating prices
+- Cleaned up print and logger statements
+
 ## Update 1 September 2023
 - Allow deleting row in add trades section
 - Fixed crypto issue -> all crypto now base converted to USD and then converted to local currency
