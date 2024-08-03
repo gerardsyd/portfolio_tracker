@@ -192,14 +192,19 @@ class User(UserMixin, db.Model):
             ['Ticker', 'Currency', 'CumQuan', 'Fx', 'AvgCostRaw', 'grouping', 'AvgCostAdj', 'AvgCost', 'CumDiv', 'TotalRlGain']
         """
         # Set up variables
+        start = datetime.now()
         tickers = self.get_tickers()
         tickers.extend(self.currencies())  # add currencies to ticker list
+        logger.info(f'Get tickers took {(datetime.now()-start)} to run')
 
+        start = datetime.now()
         if start_date is None:
             start_date = db.session.query(
                 func.min(StockPrices.date)).first()[0]
         if as_at_date is None:
             as_at_date = pd.to_datetime('today')
+        logger.info(
+            f'Get start and as at date took {(datetime.now()-start)} to run')
 
         logger.debug(
             'Get splits and dividend information from stockprices for tickers')
@@ -220,14 +225,21 @@ class User(UserMixin, db.Model):
         logger.info(
             f'Splits and divs data took {(datetime.now()-start)} to run')
 
+        start = datetime.now()
         logger.debug('Getting latest prices for tickers')
         curr_df = self.current_prices(
             tickers=tickers, as_at_date=as_at_date, last_change=True)
+        logger.info(
+            f'Current prices took {(datetime.now()-start)} to run')
+
+        start = datetime.now()
         logger.debug(
             'Getting historical positions and calculating current holdings')
         hist_df = self.hist_positions(start_date=start_date, as_at_date=as_at_date,
                                       splits=splits, divs=divs, include_dividends=True, calculate_gains=True, limit_divs_by_date=limit_divs_by_date)
         hist_trades = hist_df.copy(deep=True)
+        logger.info(
+            f'Historical positions took {(datetime.now()-start)} to run')
 
         logger.debug('Getting IRR for each position')
         start = datetime.now()
@@ -482,7 +494,6 @@ class User(UserMixin, db.Model):
             pd.DataFrame: Returns Dataframe with ticker and IRRs for each stock held
         """
 
-        start = datetime.now()
         # get current position for each ticker (i.e. current number of shares held)
         curr_pos = hist_pos.groupby('Ticker').last().reset_index()
         curr_p = curr_p.set_index('Ticker').astype({'Close': 'float'})
@@ -522,7 +533,6 @@ class User(UserMixin, db.Model):
         IRR_df = pd.concat([IRR_df, pd.DataFrame(
             [['Total', total_irr]], columns=IRR_df.columns)], ignore_index=True)
 
-        logger.info(f'IRR calc took {(datetime.now()-start)} to run')
         return IRR_df
 
     def current_prices(self, tickers: List, as_at_date: datetime, last_change: bool = False) -> pd.DataFrame:
@@ -538,8 +548,6 @@ class User(UserMixin, db.Model):
             pd.DataFrame: Dataframe with columns: Ticker, Date, Close as at Date and, if last_change is true, %LastChange which shows % change in price
         """
 
-        start = datetime.now()
-        # add curr_fx col
         curr_p = self._current_prices(
             tickers, [as_at_date] * len(tickers), ['Ticker', 'Close', 'Date', 'Currency'])
 
@@ -554,8 +562,6 @@ class User(UserMixin, db.Model):
             curr_p.drop(columns='PrevClose', inplace=True)
 
         curr_p = self.get_fx(curr_p)
-        logger.info(
-            f'current prices read took {(datetime.now()-start)} to run')
         return curr_p
 
     def _current_prices(self, tickers: List[str], as_at_dates: List[datetime], columns: List[str]) -> pd.DataFrame:
@@ -820,6 +826,143 @@ class User(UserMixin, db.Model):
 
         logger.info(f'price update took {(datetime.now()-start)} to run')
         return prices
+
+    def monthly_summary(self, start_date: datetime, end_date: datetime, tickers: List = None, exclude_crypto: bool = False, exclude_loans: bool = False) -> pd.DataFrame:
+        """
+        Creates a dataframe with an aggregate of portfolio showing opening balance, net investment, investment returns and closing balance. Includes row for dividends and, if: 
+            - exclude_crypto is True, line for crypto balance
+            - exclude_loans is True, line for margin loan balance
+        Always will create summary as at the end of the month for the periods provided
+
+        Args:
+            start_date (datetime): Start date to calculate monthly summary
+            end_date (datetime): End date to calculate monthly summary
+            tickers (List, optional): Limits to certain tickers if required. Defaults to None.
+            exclude_crypto (bool, optional): Excludes any assets with .CRYPTO. Defaults to False.
+            exclude_loans (bool, optional): Excludes any assets with .LOAN. Defaults to False.
+
+        Returns:
+            pd.DataFrame: Dataframe with Opening balance, net investment, investment returns and closing balance. Shows dividends received, crypto and loan balance at month end
+        """
+        start_date = (start_date.replace(day=1) - pd.Timedelta(days=1)
+                      )  # add previous period end for closing balance
+        month_ends = pd.date_range(start_date, end_date, freq='M').tolist()
+
+        df = pd.DataFrame()
+        trades_df = None
+
+        for m_end in month_ends:
+            logger.debug(m_end)
+            info_date, _ = self.info_date(start_date=start_date,
+                                          as_at_date=m_end, hide_zero_pos=True, limit_divs_by_date=True)
+            info_date = info_date[:-1]
+            if tickers is not None:
+                info_date = info_date[info_date['Ticker'].isin(tickers)]
+            info_date['Date'] = m_end
+            # print(info_date)
+            df = pd.concat([df, info_date], ignore_index=True)
+            if m_end == month_ends[-1]:
+                trades_df = _
+
+        # reshape the dataframe to have dates running along columns and tickers as rows
+        reshaped_df = df.pivot(
+            index='Ticker', columns='Date', values='CurrVal')
+
+        # Separate crypto and margin loan balances
+        crypto_df = reshaped_df[reshaped_df.index.str.endswith('.CRYPTO')]
+        crypto_df.loc['Crypto'] = crypto_df.sum(numeric_only=True)
+        crypto_df = crypto_df[crypto_df.index == 'Crypto']
+        crypto_df.columns = pd.to_datetime(
+            crypto_df.columns).strftime('%Y-%m-%d')
+        loans_df = reshaped_df[reshaped_df.index.str.endswith('.LOAN')]
+        loans_df.loc['Loans'] = loans_df.sum(numeric_only=True)
+        loans_df = loans_df[loans_df.index == 'Loans']
+        loans_df.columns = pd.to_datetime(
+            loans_df.columns).strftime('%Y-%m-%d')
+
+        # Exclude crypto and margin loan balances based on flag
+        if exclude_crypto:
+            reshaped_df = reshaped_df[~reshaped_df.index.str.endswith(
+                '.CRYPTO')]
+        if exclude_loans:
+            reshaped_df = reshaped_df[~reshaped_df.index.str.endswith('.LOAN')]
+        reshaped_df.loc['Total'] = reshaped_df.sum(numeric_only=True)
+        reshaped_df = reshaped_df.reset_index()
+
+        # Calculate the closing balance
+        monthly_summ = reshaped_df.loc[reshaped_df['Ticker'] == 'Total']
+        monthly_summ.index = ['Closing Balance']
+        monthly_summ.drop(columns=['Ticker'], inplace=True)
+
+        # Calculate the opening balance as the previous month's closing balance
+        opening_balance = monthly_summ.shift(1, axis=1).iloc[-1]
+        opening_balance.name = 'Opening Balance'
+
+        # Insert the opening balance as the first row in the DataFrame
+        monthly_summ = pd.concat([opening_balance.to_frame().T, monthly_summ])
+        # Convert the numpy array to a pandas Index and then format the dates
+        monthly_summ.columns = pd.to_datetime(
+            monthly_summ.columns).strftime('%Y-%m-%d')
+
+        # Filter the trades DataFrame to include only rows within the specified date range, then group by month and sum the 'CF' values for each month.
+        # Create a new DataFrame with these monthly sums, set the index to 'Capital Flow'
+        trades_df = trades_df[trades_df['Date'] >= start_date]
+        trades_df = trades_df[trades_df['Date'] <= end_date]
+        # separate out dividends and group by month, then aggregate into df
+        div_df = trades_df[trades_df['Direction'] == 'Div']
+        div_by_month = div_df.groupby(
+            div_df['Date'].dt.to_period('M'))['CF'].sum()
+        div_df = pd.DataFrame([div_by_month.values],
+                              columns=div_by_month.index.strftime('%Y-%m-%d'))
+        div_df.index = ['Dividends']
+
+        trades_df = trades_df[trades_df['Direction'] != 'Div']
+
+        # Exclude crypto and margin loan trades based on flags
+        if exclude_crypto:
+            trades_df = trades_df[~trades_df['Ticker'].str.endswith('.CRYPTO')]
+        if exclude_loans:
+            trades_df = trades_df[~trades_df['Ticker'].str.endswith('.LOAN')]
+
+        trades_df['CF'] = trades_df['CF'] * - \
+            1  # change CF flow for this context
+        total_CF_by_month = trades_df.groupby(
+            trades_df['Date'].dt.to_period('M'))['CF'].sum()
+        total_CF_row = pd.DataFrame(
+            [total_CF_by_month.values], columns=total_CF_by_month.index.strftime('%Y-%m-%d'))
+        total_CF_row.index = ['Net Investment']
+
+        # Merge the monthly_summ DataFrame with the total_CF_row DataFrame, using the 'Date' columns as the key
+        monthly_summ = pd.concat(
+            [monthly_summ, total_CF_row, div_df], axis=0)
+        if exclude_crypto:
+            monthly_summ = pd.concat([monthly_summ, crypto_df], axis=0)
+        if exclude_loans:
+            monthly_summ = pd.concat([monthly_summ, loans_df], axis=0)
+        monthly_summ.fillna(0, inplace=True)
+
+        # Create a new row in monthly_summ which takes Closing Balance less opening balance less capital flow as investment returns
+        investment_returns = monthly_summ.loc['Closing Balance'] - \
+            monthly_summ.loc['Opening Balance'] - \
+            monthly_summ.loc['Net Investment']
+        investment_returns.name = 'Investment Returns'
+        monthly_summ = pd.concat(
+            [monthly_summ, investment_returns.to_frame().T], axis=0)
+
+        # Reorder the rows in monthly_summ
+        summary_order = ['Opening Balance', 'Net Investment',
+                         'Investment Returns', 'Closing Balance', 'Dividends']
+        if exclude_loans:
+            summary_order.append('Loans')
+        if exclude_crypto:
+            summary_order.append('Crypto')
+        monthly_summ = monthly_summ.loc[summary_order]
+
+        # drop previous month column
+        monthly_summ.drop(
+            columns=[month_ends[0].strftime('%Y-%m-%d')], inplace=True)
+
+        return monthly_summ
 
 
 class Trades(db.Model):

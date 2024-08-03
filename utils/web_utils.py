@@ -114,17 +114,18 @@ def update_links(html: str, currency: str, date: str):
     return html
 
 
-def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List, ticker_links: bool, uuid: str):
+def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List, ticker_links: bool, uuid: str, rows_to_bold: List = [-1], hide_index: bool = True):
     df_html = (df.style
                .format(PF_FORMAT_DICT, na_rep="--")
                .map(neg_red, subset=neg_cols)
                #    .map(format_with_parentheses, subset=neg_cols)
                .set_properties(**{'text-align': 'left'}, subset=left_align_cols)
-               .set_properties(**{'font-weight': 'bold'}, subset=df.index[-1])
-               .hide(axis="index")
                .set_uuid(uuid)
+               .set_properties(**{'font-weight': 'bold'}, subset=(df.index[rows_to_bold], df.columns))
                .set_table_attributes('class="hover stripe row-border order-column display compact"')
                )
+    if hide_index:
+        df_html = df_html.hide(axis="index")
     if ticker_links:
         df_html.format(
             stock_link, subset=pd.IndexSlice[df.index[:-1], 'Ticker'])

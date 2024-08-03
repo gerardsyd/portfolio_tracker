@@ -1,0 +1,131 @@
+{% extends 'base.jinja2' %}
+{% set active_page = "utilities" %}
+
+{% block app_styles %}
+<link rel="stylesheet" type="text/css"
+    href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css" />
+<style>
+    table#T_monthlysumm.dataTable {
+        font-size: 14px
+    }
+
+    th {
+        font-size: 14px;
+        text-align: right
+    }
+
+    tr {
+        font-size: 14px;
+        text-align: right
+    }
+
+    table#T_monthlysumm.dataTable tbody tr:hover {
+        background-color: #dff
+    }
+
+    table#T_monthlysumm.dataTable tbody tr:hover>.sorting_1 {
+        background-color: #dff
+    }
+
+    .td-left {
+        text-align: left
+    }
+
+    .container-fluid {
+        padding: 2%;
+    }
+</style>
+{% endblock app_styles %}
+
+{% block app_content %}
+<div class="container">
+    <h2>Monthly Portfolio Summary for {{ current_user.username }}</h2>
+    <form action="/portfolio/monthly" method="post">
+        <div class="form-row align-items-center">
+            <div class="col">
+                <label for="start_date">Start Date: </label>
+                <input type="date" name="start_date" id="start_date" class="form-control">
+            </div>
+            <div class="col">
+                <label for="end_date">End Date: </label>
+                <input type="date" name="end_date" id="end_date" class="form-control">
+            </div>
+            <div class="col">
+                <div class="form-check">
+                    <input type="checkbox" id="exclude_crypto" name="exclude_crypto" value="1" class="form-check-input"
+                        checked>
+                    <label for="exclude_crypto">Exclude Crypto?</label>
+                </div>
+            </div>
+            <div class="col">
+                <div class="form-check">
+                    <input type="checkbox" id="exclude_loans" name="exclude_loans" value="1" class="form-check-input"
+                        checked>
+                    <label for="exclude_loans">Exclude Loans?</label>
+                </div>
+            </div>
+            <div class="col" align="center">
+                <input type="submit" name="action" value="Submit" class="btn btn-primary">
+            </div>
+            <div class="col" align="center">
+                <input type="submit" name="action" value="Export to File" class="btn btn-primary">
+            </div>
+            <input type="hidden" name="time_offset" id="time_offset" value="0">
+        </div>
+    </form>
+    <p>
+</div>
+<div class="container-fluid">
+    <div class="table-responsive">
+        {% for table in tables %}
+        {{table}}
+        {%endfor%}
+    </div>
+</div>
+{% endblock %}
+
+{% block app_scripts %}
+
+<script type="text/javascript"
+    src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
+
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#T_monthlysumm').DataTable({
+            autoWidth: false,
+            colReorder: false,
+            fixedHeader: {
+                footer: true
+            },
+            fixedColumns: {
+                leftColumns: 1
+            },
+            ordering: false,
+            paging: false,
+            responsive: true,
+            searching: false,
+            rowCallback: function (row, data, index) {
+                // Apply number formatting to all columns except the first
+                $(row).find('td').each(function (i) {
+                    if (i > 0) { // Skip the first column (index 0)
+                        // Example: Format the cell value as a number
+                        var numValue = parseFloat($(this).text());
+                        if (!isNaN(numValue)) { // Check if the value is a number
+                            // Format the number to #,###
+                            $(this).text(numValue.toFixed(0).replace(/\B(?=(\d{3})+(?!\d))/g, ","));
+                        }
+                    }
+                });
+            }
+        });
+
+        var d = new Date();
+        var n = d.getTimezoneOffset();
+        document.getElementById("time_offset").value = n;
+    });
+
+
+</script>
+{% endblock app_scripts %}

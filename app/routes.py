@@ -4,7 +4,7 @@ import logging
 from os import path
 import traceback
 
-from flask import flash, jsonify, render_template, request, redirect, url_for
+from flask import flash, jsonify, render_template, request, redirect, url_for, Response
 from flask.globals import current_app
 from flask.helpers import make_response
 from flask_login import current_user, login_user, logout_user
@@ -213,6 +213,46 @@ def stock(ticker: str):
     return render_template('stock_dynamic.jinja2', title=f'Overview for {name}', stock_name=name, postition_df=position, divs=divs.to_html(), splits=splits.to_html(), trades=trades, ticker=ticker)
 
 
+@app.route('/portfolio/monthly', methods=['GET', 'POST'])
+@login_required
+def monthly_pf():
+    title = 'Monthly Portfolio Summary'
+    if request.method == 'GET':
+        return render_template('monthly.jinja2')
+    elif request.method == 'POST':
+        if (request.form.get('start_date') == '') or (request.form.get('end_date') == ''):
+            flash('Please insert dates and submit query', 'info')
+            return render_template('monthly.jinja2', title=title)
+        start_date = get_date(request.form.get('start_date'), None)
+        end_date = get_date(request.form.get('end_date'), None)
+        exclude_crypto = request.form.get('exclude_crypto') == '1'
+        exclude_loans = request.form.get('exclude_loans') == '1'
+
+        logger.info(
+            f'{start_date=}, {end_date=}, {exclude_loans=}, {exclude_crypto=}')
+
+        monthly_summ = current_user.monthly_summary(
+            start_date=start_date, end_date=end_date, exclude_crypto=exclude_crypto, exclude_loans=exclude_loans)
+        monthly_summ.columns = pd.to_datetime(
+            monthly_summ.columns).strftime('%b %y')
+        rows_to_sum = ['Dividends', 'Net Investment', 'Investment Returns']
+        monthly_summ.loc[rows_to_sum,
+                         'Total'] = monthly_summ.loc[rows_to_sum].sum(axis=1)
+        if "action" in request.form and request.form["action"] == "Export to File":
+            return exportxls(filename='monthly_summary.xlsx', export_index=True, df1=monthly_summ, df1_name='Summary')
+        else:
+            if monthly_summ.empty:
+                df_html = "<p><div class='alert alert-primary' role='alert'> No dividends or capital gains in period</div>"
+            else:
+                # convert columns to string and format dates, reset index and rename the first column to be blank
+                monthly_summ.reset_index(inplace=True)
+                monthly_summ.rename(columns={'index': ' '}, inplace=True)
+
+                df_html = web_utils.pandas_table_styler(
+                    monthly_summ, neg_cols=monthly_summ.columns, left_align_cols=[' '], ticker_links=False, uuid='monthlysumm', rows_to_bold=[0, 3])
+            return render_template('monthly.jinja2', tables=[df_html], title='Monthly Summary')
+
+
 @app.route('/update_stock_name', methods=['POST'])
 @login_required
 def update_stock_name():
@@ -254,12 +294,10 @@ def exportpf():
 def tax():
     title = 'Tax Summary'
     if request.method == 'POST':
-        if (request.form.get(
-                'start_date') == '') or (request.form.get(
-                'end_date') == ''):
+        if (request.form.get('start_date') == '') or (request.form.get('end_date') == ''):
             flash('Please insert dates and submit query', 'info')
             return render_template('tax.jinja2', title=title)
-        if "action" in request.form and request.form["action"] == "Export to CSV":
+        if "action" in request.form and request.form["action"] == "Export to File":
             return exportpftax(title)
         else:
             return taxoutput(title)
@@ -291,14 +329,33 @@ def profile(username):
 
 def exportpftax(title: str):
     df, trades_df = get_tax_df(title)
+    return exportxls(filename='tax_trades.xlsx', export_index=False, df1=df, df1_name='Summary', df2=trades_df, df2_name='Trades')
 
+
+def exportxls(filename: str, export_index: bool, df1: pd.DataFrame, df1_name: str, df2: pd.DataFrame = None, df2_name: str = None) -> Response:
+    """
+    Export excel file with each df as a sheet as a Response object
+
+    Args:
+        filename (str): name of the file
+        export_index (bool): True if index to be exported, false otherwise
+        df1 (pd.DataFrame): dataframe 1 to export into sheet
+        df1_name (str): sheet name for dataframe 1
+        df2 (pd.DataFrame, optional): dataframe 2 to export into sheet. Defaults to None.
+        df2_name (str, optional): sheet name for dataframe 1. Defaults to None.
+
+    Returns:
+        Response: Excel sheet in Response object
+    """
+    
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     output = BytesIO()
     writer = pd.ExcelWriter(output, engine='xlsxwriter')
 
     # Write each dataframe to a different worksheet.
-    df.to_excel(writer, sheet_name='Summary', index=False)
-    trades_df.to_excel(writer, sheet_name='Trades', index=False)
+    df1.to_excel(writer, sheet_name=df1_name, index=export_index)
+    if df2 is not None:
+        df2.to_excel(writer, sheet_name=df2_name, index=export_index)
 
     # Close the Pandas Excel writer and output the Excel file.
     writer.close()
@@ -306,9 +363,7 @@ def exportpftax(title: str):
 
     resp = make_response(output.getvalue())
     resp.headers.set("Content-Disposition",
-                     "attachment", filename="tax_trades.xlsx")
-    # resp.headers.set("Content-Disposition",
-    #                  "attachment", filename="pf_position.csv")
+                     "attachment", filename=filename)
     return resp
 
 
@@ -327,8 +382,8 @@ def taxoutput(title: str):
         trades_df_html = web_utils.pandas_table_styler(
             trades_df, neg_cols=['CashFlow'], left_align_cols=['Ticker'], ticker_links=False, uuid='taxtrades')
         # trades_df_html = web_utils.add_footer(df_html)
-    logger.info(df_html)
-    logger.info(trades_df_html)
+    logger.debug(df_html)
+    logger.debug(trades_df_html)
     return render_template('tax.jinja2', tables=[df_html, trades_df_html], title=title)
 
 

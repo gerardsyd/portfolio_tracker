@@ -3,6 +3,10 @@ Tracks stock, funds, crypto asset portfolio including gains / losses, dividends 
 
 See my [Medium post](https://medium.com/@gerard_syd/python-stock-portfolio-tracker-4bf6d082f564) for information on how to use:
 
+## Update 3 August 2024
+- Minor fixes for tax jinja
+- Added Monthly Summary page showing a monthly summary of portfolio over time
+
 ## Update 29 May 2024
 - Minor fixes including checks for empty date frames, update_prices, docstrings
 - Added ability to edit names in individual stock pages
