@@ -2,6 +2,7 @@ from datetime import datetime
 import logging
 from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
+from requests.exceptions import ConnectionError as reqConnectionError
 
 import investpy
 from json.decoder import JSONDecodeError
@@ -215,7 +216,7 @@ def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
         if 'Capital Gains' in df.columns:
             df.drop(columns=["Capital Gains"], inplace=True)
         df.index.names = ['Date']
-    except (KeyError, RuntimeError, ConnectionError, JSONDecodeError, TimeoutError) as e:
+    except (KeyError, RuntimeError, ConnectionError, JSONDecodeError, TimeoutError, reqConnectionError) as e:
         error_type = e.__class__.__name__
         logger.error(
             f'-------  {error_type} with Yahoo! Finance (ticker: {ticker}) -------', exc_info=True)
