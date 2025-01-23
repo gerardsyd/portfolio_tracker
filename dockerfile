@@ -4,7 +4,7 @@ FROM python:3.10
 RUN wget -q -O - https://dl-ssl.google.com/linux/linux_signing_key.pub | apt-key add -
 RUN apt-get -y update
 ARG CHROME_VERSION="114.0.5735.90-1"
-RUN wget --no-check-certificate https://dl.google.com/linux/chrome/deb/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb
+RUN wget --no-check-certificate https://mirror.cs.uchicago.edu/google-chrome/pool/main/g/google-chrome-stable/google-chrome-stable_${CHROME_VERSION}_amd64.deb
 RUN dpkg -i google-chrome-stable_${CHROME_VERSION}_amd64.deb || apt -y -f install
 RUN rm google-chrome-stable_${CHROME_VERSION}_amd64.deb;
 
