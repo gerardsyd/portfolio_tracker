@@ -347,7 +347,7 @@ def exportxls(filename: str, export_index: bool, df1: pd.DataFrame, df1_name: st
     Returns:
         Response: Excel sheet in Response object
     """
-    
+
     # Create a Pandas Excel writer using XlsxWriter as the engine.
     output = BytesIO()
     writer = pd.ExcelWriter(output, engine='xlsxwriter')

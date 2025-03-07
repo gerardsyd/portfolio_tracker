@@ -45,8 +45,8 @@ def get_price_data_ticker(ticker: str, start_date: datetime, end_date: datetime,
     elif ticker_type == 'FX':
         dl_data = get_currency_data(raw_ticker, start_date, end_date)
     else:
-        # assumes that ticker is YQ acceptable ticker and attempts to obtain price from yahooquery
-        dl_data = get_yq_price(ticker, start_date, end_date)
+        # assumes that ticker is YF acceptable ticker and attempts to obtain price from yahooquery
+        dl_data = get_yf_price(ticker, start_date, end_date)
 
     if isinstance(dl_data, pd.DataFrame):
         logger.debug(
@@ -238,7 +238,7 @@ def get_yf_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
     """
     try:
         df = yf.Ticker(ticker).history(
-            start=start_date, end=end_date, auto_adjust=False, rounding=False, debug=False)
+            start=start_date, end=end_date, auto_adjust=False, rounding=False)
         df.rename(columns={'Stock Splits': 'Splits',
                   'Adj Close': 'Adjclose'}, inplace=True)
         df = df.tz_localize(None)  # remove TZ aware from downloaded data
@@ -279,8 +279,8 @@ def get_name(ticker: str) -> str:
 
     if ticker_type == 'STOCK':
         try:
-            stock = yq.Ticker(ticker)
-            name = stock.quote_type[ticker]['longName']
+            stock = yf.Ticker(ticker)
+            name = stock.info['shortName']
         except (IndexError, KeyError, Exception, ValueError, AttributeError) as e:
             logger.info(f'-------  Ticker name {ticker} not found -------')
             logger.exception(f'-------  Error is {e} -------', stack_info=True)
@@ -316,9 +316,9 @@ def get_currency(ticker: str) -> str:
 
     if ticker_type == 'STOCK':
         try:
-            stock = yq.Ticker(ticker)
+            stock = yf.Ticker(ticker)
             try:
-                currency = stock.price[ticker]['currency']
+                currency = stock.info['currency']
             except (IndexError, KeyError, Exception) as e:
                 logger.info(
                     f'-------  Currency for {ticker} not found -------')
@@ -359,7 +359,7 @@ def split_ticker(ticker: str) -> Tuple[str, str]:
 
 
 def get_currency_data(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    return get_yq_price(ticker=ticker, start_date=start_date, end_date=end_date)
+    return get_yf_price(ticker=ticker, start_date=start_date, end_date=end_date)
 
 
 if __name__ == '__main__':
