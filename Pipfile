@@ -92,6 +92,7 @@ graphviz = "*"
 pylint = "*"
 python-call-graph = "*"
 snakeviz = "*"
+curl-cffi = "*"
 
 [dev-packages]
 ipykernel = "*"

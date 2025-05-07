@@ -4,6 +4,7 @@ from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
 from requests.exceptions import ConnectionError as reqConnectionError
 
+from curl_cffi import requests
 import investpy
 from json.decoder import JSONDecodeError
 import pandas as pd
@@ -14,6 +15,7 @@ import yahooquery as yq
 from utils.crypto import get_crypto_price
 
 logger = logging.getLogger('pt_logger.Stock')
+session = requests.Session(impersonate="chrome")
 
 
 def get_price_data_ticker(ticker: str, start_date: datetime, end_date: datetime, currency: str) -> pd.DataFrame:
@@ -237,7 +239,7 @@ def get_yf_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
         pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for ticker from start_date to end_date
     """
     try:
-        df = yf.Ticker(ticker).history(
+        df = yf.Ticker(ticker, session=session).history(
             start=start_date, end=end_date, auto_adjust=False, rounding=False)
         df.rename(columns={'Stock Splits': 'Splits',
                   'Adj Close': 'Adjclose'}, inplace=True)
@@ -279,7 +281,7 @@ def get_name(ticker: str) -> str:
 
     if ticker_type == 'STOCK':
         try:
-            stock = yf.Ticker(ticker)
+            stock = yf.Ticker(ticker, session=session)
             name = stock.info['shortName']
         except (IndexError, KeyError, Exception, ValueError, AttributeError) as e:
             logger.info(f'-------  Ticker name {ticker} not found -------')
@@ -316,7 +318,7 @@ def get_currency(ticker: str) -> str:
 
     if ticker_type == 'STOCK':
         try:
-            stock = yf.Ticker(ticker)
+            stock = yf.Ticker(ticker, session=session)
             try:
                 currency = stock.info['currency']
             except (IndexError, KeyError, Exception) as e:
