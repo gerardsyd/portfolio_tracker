@@ -105,8 +105,8 @@ def update_pf():
     return render_template('home.jinja2', tables=df_html, title="Overview")
 
 
-@ app.route('/load', methods=['GET', 'POST'])
-@ login_required
+@app.route('/load', methods=['GET', 'POST'])
+@login_required
 def load_trades_csv():
     if request.method == 'POST':
         pf_file = request.files['file']
@@ -131,8 +131,8 @@ def load_trades_csv():
     return redirect(url_for('index'))
 
 
-@ app.route('/save', methods=['GET', 'POST'])
-@ login_required
+@app.route('/save', methods=['GET', 'POST'])
+@login_required
 def save_pf():
     pf_trades = current_user.get_trades()
     if pf_trades.empty:
@@ -144,8 +144,8 @@ def save_pf():
     return resp
 
 
-@ app.route('/add_trades', methods=['GET', 'POST'])
-@ login_required
+@app.route('/add_trades', methods=['GET', 'POST'])
+@login_required
 def add_trades():
     if request.method == 'POST':
         trades_df = web_utils.resp_to_trades_df(request)
@@ -155,8 +155,8 @@ def add_trades():
     return render_template('add_trades.jinja2', title='Add Trades')
 
 
-@ app.route('/view_trades', methods=['GET', 'POST'])
-@ login_required
+@app.route('/view_trades', methods=['GET', 'POST'])
+@login_required
 def view_trades():
     if request.method == 'GET':
         df = current_user.get_trades()
@@ -191,8 +191,8 @@ def view_trades():
         return redirect(url_for('view_trades', title='View Trades'))
 
 
-@ app.route('/stock/<ticker>')
-@ login_required
+@app.route('/stock/<ticker>')
+@login_required
 def stock(ticker: str):
     # currency = request.args.get('currency')
     stock = Stocks.query.filter_by(ticker=ticker).first()
@@ -273,8 +273,8 @@ def pfactions():
         return update_pf()
 
 
-@ app.route('/exportpf', methods=['GET', 'POST'])
-@ login_required
+@app.route('/exportpf', methods=['GET', 'POST'])
+@login_required
 def exportpf():
     as_at_date = get_date(request.form.get(
         'date'), request.form.get('time_offset'))
@@ -368,7 +368,11 @@ def exportxls(filename: str, export_index: bool, df1: pd.DataFrame, df1_name: st
 
 
 def taxoutput(title: str):
-    df, trades_df = get_tax_df(title)
+    start_date = get_date(request.form.get(
+        'start_date'), None)
+    end_date = get_date(request.form.get(
+        'end_date'), None)
+    df, trades_df = get_tax_df(title, start_date, end_date)
     if df.empty:
         df_html = "<p><div class='alert alert-primary' role='alert'> No dividends or capital gains in period</div>"
         trades_df_html = "<p>"
@@ -387,12 +391,7 @@ def taxoutput(title: str):
     return render_template('tax.jinja2', tables=[df_html, trades_df_html], title=title)
 
 
-def get_tax_df(title: str):
-    start_date = get_date(request.form.get(
-        'start_date'), None)
-    end_date = get_date(request.form.get(
-        'end_date'), None)
-
+def get_tax_df(title: str, start_date: str, end_date: str):
     logger.info(f'{start_date=}, {end_date=}')
     hide_zero = False
     # currency = 'AUD'

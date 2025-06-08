@@ -309,7 +309,7 @@ class Portfolio():
 
         return hist_pos
 
-    @ staticmethod
+    @staticmethod
     def calc_avg_price(df: pd.DataFrame) -> pd.DataFrame:
         df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(
             0)  # create group for each group of shares bought / sold

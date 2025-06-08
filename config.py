@@ -17,3 +17,4 @@ class Config(object):
     SQLALCHEMY_POOL_TIMEOUT = 600
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_EXTENSIONS = ['.csv']
+    API_TOKEN = os.environ.get('API_TOKEN')

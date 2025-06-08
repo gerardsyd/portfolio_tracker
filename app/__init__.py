@@ -24,6 +24,11 @@ migrate = Migrate(app, db)
 login = LoginManager(app)
 login.login_view = 'login'
 
+# isort:off
 from app import routes, models
+from app.api_routes import api_bp
+# isort:on
+
+app.register_blueprint(api_bp)
 
 # app.run()

@@ -829,7 +829,7 @@ class User(UserMixin, db.Model):
 
     def monthly_summary(self, start_date: datetime, end_date: datetime, tickers: List = None, exclude_crypto: bool = False, exclude_loans: bool = False) -> pd.DataFrame:
         """
-        Creates a dataframe with an aggregate of portfolio showing opening balance, net investment, investment returns and closing balance. Includes row for dividends and, if: 
+        Creates a dataframe with an aggregate of portfolio showing opening balance, net investment, investment returns and closing balance. Includes row for dividends and, if:
             - exclude_crypto is True, line for crypto balance
             - exclude_loans is True, line for margin loan balance
         Always will create summary as at the end of the month for the periods provided
