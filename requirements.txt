@@ -30,7 +30,7 @@ python-binance==0.7.5
 python-dateutil==2.8.1
 pytz==2020.5
 regex==2020.11.13
-requests==2.24.0
+requests==2.32.4
 scipy==1.5.2
 selenium==3.141.0
 service-identity==18.1.0
