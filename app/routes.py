@@ -298,7 +298,9 @@ def tax():
             flash('Please insert dates and submit query', 'info')
             return render_template('tax.jinja2', title=title)
         if "action" in request.form and request.form["action"] == "Export to File":
-            return exportpftax(title)
+            start_date = get_date(request.form.get('start_date'), None)
+            end_date = get_date(request.form.get('end_date'), None)
+            return exportpftax(title, start_date, end_date)
         else:
             return taxoutput(title)
     else:
@@ -327,8 +329,8 @@ def profile(username):
     return render_template('profile.jinja2', username=username, title="Profile", form=form)
 
 
-def exportpftax(title: str):
-    df, trades_df = get_tax_df(title)
+def exportpftax(title: str, start_date: str, end_date: str):
+    df, trades_df = get_tax_df(title, start_date, end_date)
     return exportxls(filename='tax_trades.xlsx', export_index=False, df1=df, df1_name='Summary', df2=trades_df, df2_name='Trades')
 
 
