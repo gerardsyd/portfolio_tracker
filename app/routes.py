@@ -218,11 +218,14 @@ def stock(ticker: str):
 def monthly_pf():
     title = 'Monthly Portfolio Summary'
     if request.method == 'GET':
-        return render_template('monthly.jinja2')
+        return render_template('monthly.jinja2', title=title, view_mode='summary')
     elif request.method == 'POST':
+        view_mode = request.form.get('view_mode', 'summary')
+        detail = view_mode == 'detail'
+
         if (request.form.get('start_date') == '') or (request.form.get('end_date') == ''):
             flash('Please insert dates and submit query', 'info')
-            return render_template('monthly.jinja2', title=title)
+            return render_template('monthly.jinja2', title=title, view_mode=view_mode)
         start_date = get_date(request.form.get('start_date'), None)
         end_date = get_date(request.form.get('end_date'), None)
         exclude_crypto = request.form.get('exclude_crypto') == '1'
@@ -232,25 +235,40 @@ def monthly_pf():
             f'{start_date=}, {end_date=}, {exclude_loans=}, {exclude_crypto=}')
 
         monthly_summ = current_user.monthly_summary(
-            start_date=start_date, end_date=end_date, exclude_crypto=exclude_crypto, exclude_loans=exclude_loans)
+            start_date=start_date, end_date=end_date, exclude_crypto=exclude_crypto, exclude_loans=exclude_loans, detail=detail)
         monthly_summ.columns = pd.to_datetime(
             monthly_summ.columns).strftime('%b %y')
-        rows_to_sum = ['Dividends', 'Net Investment', 'Investment Returns']
-        monthly_summ.loc[rows_to_sum,
-                         'Total'] = monthly_summ.loc[rows_to_sum].sum(axis=1)
+        if detail:
+            monthly_summ['Total'] = monthly_summ.sum(axis=1)
+        else:
+            rows_to_sum = ['Dividends', 'Net Investment', 'Investment Returns']
+            rows_available = [row for row in rows_to_sum if row in monthly_summ.index]
+            if rows_available:
+                monthly_summ.loc[rows_available,
+                                 'Total'] = monthly_summ.loc[rows_available].sum(axis=1)
+
+        export_df = monthly_summ.copy()
+        sheet_name = 'Detail' if detail else 'Summary'
         if "action" in request.form and request.form["action"] == "Export to File":
-            return exportxls(filename='monthly_summary.xlsx', export_index=True, df1=monthly_summ, df1_name='Summary')
+            return exportxls(filename='monthly_summary.xlsx', export_index=True, df1=export_df, df1_name=sheet_name)
         else:
             if monthly_summ.empty:
                 df_html = "<p><div class='alert alert-primary' role='alert'> No dividends or capital gains in period</div>"
             else:
                 # convert columns to string and format dates, reset index and rename the first column to be blank
                 monthly_summ.reset_index(inplace=True)
-                monthly_summ.rename(columns={'index': ' '}, inplace=True)
+                index_label = 'Ticker' if detail else ' '
+                monthly_summ.rename(columns={'index': index_label}, inplace=True)
 
+                neg_cols = [col for col in monthly_summ.columns if col != index_label]
+                if detail and 'Total' in monthly_summ[index_label].values:
+                    total_row_index = monthly_summ.index[monthly_summ[index_label] == 'Total'].tolist()
+                    rows_to_bold = total_row_index
+                else:
+                    rows_to_bold = [0, 3]
                 df_html = web_utils.pandas_table_styler(
-                    monthly_summ, neg_cols=monthly_summ.columns, left_align_cols=[' '], ticker_links=False, uuid='monthlysumm', rows_to_bold=[0, 3])
-            return render_template('monthly.jinja2', tables=[df_html], title='Monthly Summary')
+                    monthly_summ, neg_cols=neg_cols, left_align_cols=[index_label], ticker_links=detail, uuid='monthlysumm', rows_to_bold=rows_to_bold)
+            return render_template('monthly.jinja2', tables=[df_html], title=title, view_mode=view_mode)
 
 
 @app.route('/update_stock_name', methods=['POST'])

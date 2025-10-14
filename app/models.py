@@ -827,9 +827,9 @@ class User(UserMixin, db.Model):
         logger.info(f'price update took {(datetime.now()-start)} to run')
         return prices
 
-    def monthly_summary(self, start_date: datetime, end_date: datetime, tickers: List = None, exclude_crypto: bool = False, exclude_loans: bool = False) -> pd.DataFrame:
+    def monthly_summary(self, start_date: datetime, end_date: datetime, tickers: List = None, exclude_crypto: bool = False, exclude_loans: bool = False, detail: bool = False) -> pd.DataFrame:
         """
-        Creates a dataframe with an aggregate of portfolio showing opening balance, net investment, investment returns and closing balance. Includes row for dividends and, if:
+        Creates a dataframe summarising portfolio activity showing opening balance, net investment, investment returns, closing balance, and each investment's month-end valuation. Includes row for dividends and, if:
             - exclude_crypto is True, line for crypto balance
             - exclude_loans is True, line for margin loan balance
         Always will create summary as at the end of the month for the periods provided
@@ -840,15 +840,18 @@ class User(UserMixin, db.Model):
             tickers (List, optional): Limits to certain tickers if required. Defaults to None.
             exclude_crypto (bool, optional): Excludes any assets with .CRYPTO. Defaults to False.
             exclude_loans (bool, optional): Excludes any assets with .LOAN. Defaults to False.
+            detail (bool, optional): If True, return per-investment balances instead of summary rows. Defaults to False.
 
         Returns:
-            pd.DataFrame: Dataframe with Opening balance, net investment, investment returns and closing balance. Shows dividends received, crypto and loan balance at month end
+            pd.DataFrame: Summary rows when detail is False (opening balance, net investment, investment returns, closing balance, dividends and optional crypto/loan rows) or per-investment monthly changes when detail is True.
         """
         start_date = (start_date.replace(day=1) - pd.Timedelta(days=1)
                       )  # add previous period end for closing balance
         month_ends = pd.date_range(start_date, end_date, freq='M').tolist()
+        formatted_columns = [d.strftime('%Y-%m-%d') for d in month_ends]
 
         df = pd.DataFrame()
+        investments_df = pd.DataFrame()
         trades_df = None
 
         for m_end in month_ends:
@@ -887,6 +890,7 @@ class User(UserMixin, db.Model):
         if exclude_loans:
             reshaped_df = reshaped_df[~reshaped_df.index.str.endswith('.LOAN')]
         reshaped_df.loc['Total'] = reshaped_df.sum(numeric_only=True)
+        investments_df = reshaped_df.drop(index='Total').copy()
         reshaped_df = reshaped_df.reset_index()
 
         # Calculate the closing balance
@@ -957,11 +961,63 @@ class User(UserMixin, db.Model):
         if exclude_crypto:
             summary_order.append('Crypto')
         monthly_summ = monthly_summ.loc[summary_order]
+        monthly_summ = monthly_summ.reindex(
+            columns=formatted_columns, fill_value=0)
 
-        # drop previous month column
-        monthly_summ.drop(
-            columns=[month_ends[0].strftime('%Y-%m-%d')], inplace=True)
+        if not investments_df.empty:
+            investments_df = investments_df.fillna(0)
+            investments_df.columns = pd.to_datetime(
+                investments_df.columns).strftime('%Y-%m-%d')
+            investments_df = investments_df.reindex(
+                columns=formatted_columns, fill_value=0)
+            investments_df.index.name = None
+        else:
+            investments_df = pd.DataFrame(columns=formatted_columns)
 
+        drop_col = formatted_columns[0] if formatted_columns else None
+
+        monthly_summ.fillna(0, inplace=True)
+        investments_df.fillna(0, inplace=True)
+
+        if detail:
+            value_df = investments_df.copy()
+
+            contrib_df = pd.DataFrame(
+                0, index=value_df.index, columns=formatted_columns)
+            if 'trades_df' in locals() and trades_df is not None and not trades_df.empty:
+                ticker_cf = trades_df.copy()
+                ticker_cf['Month'] = ticker_cf['Date'].dt.to_period(
+                    'M').dt.to_timestamp('M')
+                ticker_cf = ticker_cf.groupby(
+                    ['Ticker', 'Month'])['CF'].sum().unstack(fill_value=0)
+                ticker_cf.columns = ticker_cf.columns.strftime('%Y-%m-%d')
+                contrib_df = ticker_cf.reindex(
+                    index=value_df.index, columns=formatted_columns, fill_value=0)
+
+            change_df = value_df.diff(axis=1).fillna(0)
+            if drop_col:
+                change_df.drop(
+                    columns=[drop_col], inplace=True, errors='ignore')
+                contrib_df.drop(
+                    columns=[drop_col], inplace=True, errors='ignore')
+                value_df.drop(
+                    columns=[drop_col], inplace=True, errors='ignore')
+
+            detail_df = (change_df - contrib_df).fillna(0)
+
+            if not value_df.empty and not detail_df.empty:
+                final_col = value_df.columns[-1]
+                open_mask = ~np.isclose(value_df[final_col], 0)
+                detail_df = detail_df.loc[open_mask]
+
+            if not detail_df.empty:
+                detail_df.loc['Total'] = detail_df.sum(numeric_only=True)
+            return detail_df
+
+        if drop_col:
+            monthly_summ.drop(columns=[drop_col], inplace=True, errors='ignore')
+
+        monthly_summ.fillna(0, inplace=True)
         return monthly_summ
 
 

@@ -41,37 +41,40 @@
 <div class="container">
     <h2>Monthly Portfolio Summary for {{ current_user.username }}</h2>
     <form action="/portfolio/monthly" method="post">
-        <div class="form-row align-items-center">
-            <div class="col">
-                <label for="start_date">Start Date: </label>
+        <div class="form-row align-items-end">
+            <div class="col-md-2 col-sm-4 mb-2">
+                <label class="form-label" for="start_date">Start Date</label>
                 <input type="date" name="start_date" id="start_date" class="form-control">
             </div>
-            <div class="col">
-                <label for="end_date">End Date: </label>
+            <div class="col-md-2 col-sm-4 mb-2">
+                <label class="form-label" for="end_date">End Date</label>
                 <input type="date" name="end_date" id="end_date" class="form-control">
             </div>
-            <div class="col">
-                <div class="form-check">
-                    <input type="checkbox" id="exclude_crypto" name="exclude_crypto" value="1" class="form-check-input"
-                        checked>
-                    <label for="exclude_crypto">Exclude Crypto?</label>
+            <div class="col-md-2 col-sm-4 mb-2">
+                <div class="form-check mt-4">
+                    <input type="checkbox" id="exclude_crypto" name="exclude_crypto" value="1" class="form-check-input" checked>
+                    <label class="form-check-label" for="exclude_crypto">Exclude Crypto?</label>
                 </div>
             </div>
-            <div class="col">
-                <div class="form-check">
-                    <input type="checkbox" id="exclude_loans" name="exclude_loans" value="1" class="form-check-input"
-                        checked>
-                    <label for="exclude_loans">Exclude Loans?</label>
+            <div class="col-md-2 col-sm-4 mb-2">
+                <div class="form-check mt-4">
+                    <input type="checkbox" id="exclude_loans" name="exclude_loans" value="1" class="form-check-input" checked>
+                    <label class="form-check-label" for="exclude_loans">Exclude Loans?</label>
                 </div>
             </div>
-            <div class="col" align="center">
-                <input type="submit" name="action" value="Submit" class="btn btn-primary">
+            <div class="col-md-2 col-sm-4 mb-2">
+                <label class="form-label" for="view_mode">View</label>
+                <select name="view_mode" id="view_mode" class="custom-select">
+                    <option value="summary" {% if view_mode|default('summary') != 'detail' %}selected{% endif %}>Summary</option>
+                    <option value="detail" {% if view_mode|default('summary') == 'detail' %}selected{% endif %}>Detail</option>
+                </select>
             </div>
-            <div class="col" align="center">
-                <input type="submit" name="action" value="Export to File" class="btn btn-primary">
+            <div class="col-md-3 col-sm-4 mb-2 d-flex">
+                <input type="submit" name="action" value="Submit" class="btn btn-primary mr-2 flex-fill">
+                <input type="submit" name="action" value="Export to File" class="btn btn-secondary flex-fill">
             </div>
-            <input type="hidden" name="time_offset" id="time_offset" value="0">
         </div>
+        <input type="hidden" name="time_offset" id="time_offset" value="0">
     </form>
     <p>
 </div>
