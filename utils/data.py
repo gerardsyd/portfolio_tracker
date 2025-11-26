@@ -71,14 +71,23 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: 
     Returns:
         pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for each ticker from start_date to end_date
     """
+    tickers = list(tickers)
+    start_dates = list(start_dates)
+    end_dates = list(end_dates)
+    if len(tickers) == 0:
+        logger.info('No tickers provided for price lookup; returning empty DataFrame')
+        return pd.DataFrame()
+
     try:
         with ThreadPool(processes=10) as pool:
             all_data = pool.starmap(get_price_data_ticker, zip(
                 tickers, start_dates, end_dates, currency))
             logger.debug('Obtained data, concatenating')
-            # Filter out empty DataFrames and their corresponding tickers
-            all_data, tickers = zip(
-                *[(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty])
+            filtered = [(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty]
+            if not filtered:
+                logger.info('Price lookup returned no data for provided tickers')
+                return pd.DataFrame()
+            all_data, tickers = zip(*filtered)
             concat_data = pd.concat(
                 all_data, keys=tickers, names=['Ticker', 'Date'])
     except ValueError as e:

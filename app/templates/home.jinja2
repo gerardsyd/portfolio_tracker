@@ -36,6 +36,9 @@
 {% block app_content %}
 <div class="container">
     <h2>Portfolio for {{ current_user.username }}</h2>
+    {% if last_updated %}
+    <p class="text-muted small mb-4">Last price update: {{ last_updated }}</p>
+    {% endif %}
     <label> Portfolio actions:</label>
     <form action="/pfactions" method="post">
         <div class="row align-items-center">

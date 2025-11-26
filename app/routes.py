@@ -1,3 +1,4 @@
+from collections import Counter
 from datetime import datetime, timedelta, timezone
 from io import BytesIO
 import logging
@@ -10,6 +11,7 @@ from flask.helpers import make_response
 from flask_login import current_user, login_user, logout_user
 from flask_login.utils import login_required
 import pandas as pd
+import plotly.graph_objects as go
 import plotly.io as pio
 from werkzeug.urls import url_parse
 
@@ -83,12 +85,13 @@ def update_pf():
     pf_trades = current_user.get_trades()
     if pf_trades.empty:
         flash('Portfolio is empty. Please add some trades', 'error')
-        return render_template('home.jinja2', title="Overview")
+        return render_template('home.jinja2', title="Overview", last_updated=None)
     start = datetime.now()
     if not no_update:
         current_user.update_prices(as_at_date=as_at_date)
     df, _ = current_user.info_date(
         as_at_date=as_at_date, hide_zero_pos=hide_zero)
+    raw_df = df.copy()
     logger.info(f'info_date took {(datetime.now()-start)} to run')
 
     start = datetime.now()
@@ -102,7 +105,16 @@ def update_pf():
     as_at_date = str(as_at_date.date())
     df_html = web_utils.update_links(df_html, currency, as_at_date)
     logger.info(f'render HTML took {(datetime.now()-start)} to run')
-    return render_template('home.jinja2', tables=df_html, title="Overview")
+    holdings_df = raw_df[raw_df['Ticker'].notna() & (raw_df['Ticker'] != 'Total')]
+    holdings_df = holdings_df[~holdings_df['Ticker'].astype(str).str.contains(r'\.FX$', na=False)]
+    date_series = pd.to_datetime(holdings_df['Date'], errors='coerce').dropna()
+    if not date_series.empty:
+        counts = Counter(date_series.dt.date)
+        most_common_date, _ = max(counts.items(), key=lambda x: (x[1], x[0]))
+        last_updated_display = most_common_date.strftime('%d %b %Y')
+    else:
+        last_updated_display = 'Unknown'
+    return render_template('home.jinja2', tables=df_html, title="Overview", last_updated=last_updated_display)
 
 
 @app.route('/load', methods=['GET', 'POST'])
@@ -269,6 +281,119 @@ def monthly_pf():
                 df_html = web_utils.pandas_table_styler(
                     monthly_summ, neg_cols=neg_cols, left_align_cols=[index_label], ticker_links=detail, uuid='monthlysumm', rows_to_bold=rows_to_bold)
             return render_template('monthly.jinja2', tables=[df_html], title=title, view_mode=view_mode)
+
+
+@app.route('/portfolio/nav', methods=['GET', 'POST'])
+@login_required
+def nav_pf():
+    title = 'NAV Tracking'
+    if request.method == 'GET':
+        return render_template('nav.jinja2', title=title, nav_chart=None, nav_total_chart=None, nav_totals=None)
+    elif request.method == 'POST':
+        # Check if this is a force recalculation
+        if request.form.get('action') == 'force_recalc':
+            end_date = None
+            end_date_input = request.form.get('end_date')
+            if end_date_input:
+                end_date = get_date(end_date_input, None)
+            logger.info(f'Force recalculating NAV history (end_date={end_date})')
+            updated_count = current_user.update_nav_in_trades(force_full_recalc=True, end_date=end_date)
+            flash(f'Recalculated NAV for {updated_count} trades', 'info')
+            return render_template('nav.jinja2', title=title, nav_chart=None, nav_total_chart=None, nav_totals=None)
+
+        # Get date range
+        if (request.form.get('start_date') == '') or (request.form.get('end_date') == ''):
+            flash('Please insert dates and submit query', 'info')
+            return render_template('nav.jinja2', title=title, nav_chart=None, nav_total_chart=None, nav_totals=None)
+
+        start_date = get_date(request.form.get('start_date'), None)
+        end_date = get_date(request.form.get('end_date'), None)
+
+        logger.info(f'Generating NAV summary from {start_date} to {end_date}')
+
+        # Get NAV monthly summary
+        try:
+            nav_summary_df, nav_totals = current_user.nav_monthly_summary(
+                start_date,
+                end_date,
+                force_full_recalc=(request.form.get('action') == 'force_recalc'),
+                recalc_start=start_date,
+                recalc_end=end_date,
+                perform_price_refresh=(request.form.get('action') == 'force_recalc')
+            )
+            nav_metrics = current_user.nav_performance_metrics(start_date=start_date, end_date=end_date)
+        except Exception as e:
+            logger.exception('Error generating NAV data')
+            flash(f'Error generating NAV data: {str(e)}', 'error')
+            return render_template('nav.jinja2', title=title, nav_chart=None, nav_total_chart=None, nav_totals=None)
+
+        if nav_summary_df.empty:
+            df_html = "<p><div class='alert alert-primary' role='alert'> No NAV data available for the selected period</div>"
+            return render_template('nav.jinja2', tables=[df_html], title=title, metrics=nav_metrics, nav_chart=None, nav_total_chart=None, nav_totals=nav_totals)
+
+        chart_df = nav_summary_df.sort_values('Month_End_Date')[['Month_End_Date', 'NAV_per_Unit', 'Portfolio_Value']].copy()
+        nav_chart = None
+        nav_total_chart = None
+        if not chart_df.empty:
+            fig_per_unit = go.Figure()
+            fig_per_unit.add_trace(go.Scatter(
+                x=chart_df['Month_End_Date'],
+                y=chart_df['NAV_per_Unit'],
+                mode='lines+markers',
+                name='NAV per Unit'
+            ))
+            fig_per_unit.update_layout(
+                template='plotly_white',
+                margin=dict(t=40, r=20, b=40, l=60),
+                height=400,
+                title='NAV per Unit Over Time',
+                xaxis_title='Month End',
+                yaxis_title='NAV per Unit'
+            )
+            nav_chart = pio.to_html(fig_per_unit, include_plotlyjs='cdn', full_html=False)
+
+            fig_total = go.Figure()
+            fig_total.add_trace(go.Scatter(
+                x=chart_df['Month_End_Date'],
+                y=chart_df['Portfolio_Value'],
+                mode='lines+markers',
+                name='Total NAV'
+            ))
+            fig_total.update_layout(
+                template='plotly_white',
+                margin=dict(t=40, r=20, b=40, l=60),
+                height=400,
+                title='Total NAV Over Time',
+                xaxis_title='Month End',
+                yaxis_title='Portfolio Value'
+            )
+            nav_total_chart = pio.to_html(fig_total, include_plotlyjs='cdn', full_html=False)
+
+        # Format the data for display
+        nav_summary_df = nav_summary_df.copy()
+        nav_summary_df['Month_End_Date'] = nav_summary_df['Month_End_Date'].dt.strftime('%Y-%m-%d')
+        nav_summary_df = nav_summary_df.round({
+            'NAV_per_Unit': 2,
+            'Total_Units': 2,
+            'Portfolio_Value': 2,
+            'Monthly_Return_%': 2,
+            'Inception_Return_%': 2,
+            'Capital_Flow': 2,
+            'Dividend_Flow': 2,
+            'Net_Cash_Flow': 2
+        })
+
+        # Create HTML table
+        neg_cols = ['Monthly_Return_%', 'Inception_Return_%', 'Capital_Flow', 'Net_Cash_Flow']
+        df_html = web_utils.pandas_table_styler(
+            nav_summary_df,
+            neg_cols=neg_cols,
+            left_align_cols=['Month_End_Date'],
+            ticker_links=False,
+            uuid='navsummary'
+        )
+
+        return render_template('nav.jinja2', tables=[df_html], title=title, metrics=nav_metrics, nav_chart=nav_chart, nav_total_chart=nav_total_chart, nav_totals=nav_totals)
 
 
 @app.route('/update_stock_name', methods=['POST'])
