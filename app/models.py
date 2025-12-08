@@ -837,6 +837,7 @@ class User(UserMixin, db.Model):
         p_hist_df['AvgCost'] = None
         p_hist_df['Dividends'] = None
         p_hist_df['RlGain'] = None
+        p_hist_df['CumDiv'] = None
 
         for idx, row in p_hist_df.iterrows():
             try:
