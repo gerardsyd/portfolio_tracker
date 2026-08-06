@@ -998,7 +998,7 @@ class User(UserMixin, db.Model):
         """
         start_date = (start_date.replace(day=1) - pd.Timedelta(days=1)
                       )  # add previous period end for closing balance
-        month_ends = pd.date_range(start_date, end_date, freq='M').tolist()
+        month_ends = pd.date_range(start_date, end_date, freq='ME').tolist()
         formatted_columns = [d.strftime('%Y-%m-%d') for d in month_ends]
 
         df = pd.DataFrame()
@@ -2071,7 +2071,7 @@ class User(UserMixin, db.Model):
         )
 
         # Generate month-end dates inclusive of partial months
-        month_ends = pd.period_range(start_date, end_date, freq='M').to_timestamp('M').tolist()
+        month_ends = pd.period_range(start_date, end_date, freq='ME').to_timestamp('M').tolist()
         if not month_ends:
             month_ends = [pd.Timestamp(end_date)]
 
