@@ -18,3 +18,4 @@ class Config(object):
     SQLALCHEMY_TRACK_MODIFICATIONS = False
     UPLOAD_EXTENSIONS = ['.csv']
     API_TOKEN = os.environ.get('API_TOKEN')
+    REGISTRATION_ENABLED = os.environ.get('REGISTRATION_ENABLED', 'False').lower() in ('true', '1', 'yes')

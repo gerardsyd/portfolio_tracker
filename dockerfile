@@ -1,27 +1,27 @@
-FROM python:3.10
+FROM python:3.12-slim
 
-# install google chrome
-RUN mkdir -p /usr/share/keyrings \
-    && curl -fsSL https://dl.google.com/linux/linux_signing_key.pub \
-    | gpg --dearmor -o /usr/share/keyrings/google-linux-signing-keyring.gpg \
-    && echo "deb [arch=amd64 signed-by=/usr/share/keyrings/google-linux-signing-keyring.gpg] \
-    http://dl.google.com/linux/chrome/deb/ stable main" \
-    > /etc/apt/sources.list.d/google-chrome.list \
-    && apt-get update && apt-get install -y google-chrome-stable
-#RUN apt-get install -y google-chrome-stable
-
-# # install chromedriver
-# RUN apt-get install -yqq unzip
-# RUN wget -O /tmp/chromedriver.zip http://chromedriver.storage.googleapis.com/`curl -sS chromedriver.storage.googleapis.com/LATEST_RELEASE`/chromedriver_linux64.zip
-# RUN unzip /tmp/chromedriver.zip chromedriver -d /usr/local/bin/
-
-# set display port to avoid crash
 ENV DISPLAY=:99
+ENV PYTHONDONTWRITEBYTECODE=1
+ENV PYTHONUNBUFFERED=1
 
-# install and run pftrackr
 WORKDIR /pftrackr
-COPY requirements.txt requirements.txt
-RUN pip3 install -r requirements.txt
-EXPOSE 5000
+
+# Install system deps for mysqlclient + lxml + Chrome
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    gcc \
+    default-libmysqlclient-dev \
+    libxml2-dev \
+    libxslt1-dev \
+    && rm -rf /var/lib/apt/lists/*
+
+# Copy and install Python deps
+COPY requirements.txt .
+RUN pip install --no-cache-dir -r requirements.txt && \
+    pip install --no-cache-dir uwsgi 2>/dev/null || true
+
+# Copy app code
 COPY . .
-CMD ["python3", "main.py"]
+
+EXPOSE 5000
+
+CMD ["gunicorn", "-c", "gunicorn_config.py", "wsgi:app"]

@@ -2,35 +2,31 @@ from datetime import datetime
 import logging
 from multiprocessing.pool import ThreadPool
 from typing import List, Tuple
-from requests.exceptions import ConnectionError as reqConnectionError
 
-import investpy
-from json.decoder import JSONDecodeError
 import pandas as pd
 import yfinance as yf
 import yahooquery as yq
 
-
 from utils.crypto import get_crypto_price
+from utils.custom_funds import get_custom_fund_data
 
 logger = logging.getLogger('pt_logger.Stock')
 
 
 def get_price_data_ticker(ticker: str, start_date: datetime, end_date: datetime, currency: str) -> pd.DataFrame:
-    """
-    Gets price data for ticker for specified period
+    """Get price data for a single ticker for the specified period.
+
+    Routes to the correct data source based on ticker type suffix.
 
     Args:
-        ticker (str): String ticker in format that is acceptable to Yahoo Finance
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
-        currency (str): currency to convert pricing
+        ticker: Ticker symbol (may include .LOAN/.CASH/.FUND/.CRYPTO/.FX suffix)
+        start_date: Start date
+        end_date: End date
+        currency: Base currency for price conversion
 
     Returns:
-        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for ticker from start_date to end_date
+        DataFrame with price data, or empty DataFrame on failure
     """
-
-    logger.debug(f'-------  Ticker is {ticker}  -------')
     raw_ticker, ticker_type = split_ticker(ticker=ticker)
 
     if ticker_type == 'LOAN':
@@ -40,40 +36,37 @@ def get_price_data_ticker(ticker: str, start_date: datetime, end_date: datetime,
     elif ticker_type == 'FUND':
         dl_data = get_fund_data(raw_ticker, start_date, end_date)
     elif ticker_type == 'CRYPTO':
-        currency = 'USD'  # set currency to USD to force USD conversion as base for crypto
+        currency = 'USD'
         dl_data = get_crypto_price(raw_ticker, start_date, end_date, currency)
     elif ticker_type == 'FX':
         dl_data = get_currency_data(raw_ticker, start_date, end_date)
     else:
-        # assumes that ticker is YF acceptable ticker and attempts to obtain price from yahooquery
         dl_data = get_yf_price(ticker, start_date, end_date)
 
     if isinstance(dl_data, pd.DataFrame):
-        logger.debug(
-            f'Data downloaded for {ticker}: Start: {start_date.date()} | End: {end_date.date()}')
+        logger.debug(f'Data downloaded for {ticker}: Start: {start_date.date()} | End: {end_date.date()}')
     else:
         dl_data = pd.DataFrame()
-        logger.debug(
-            f'-------  No data found for ticker: {ticker} -------')
-    # print(dl_data)
+        logger.debug(f'-------  No data found for ticker: {ticker} -------')
     return dl_data
 
 
 def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: str) -> pd.DataFrame:
-    """
-    Gets price data for a list of tickers for period specified
+    """Get price data for a list of tickers in parallel.
 
     Args:
-        tickers (List): String list of tickers in format that is acceptable to Yahoo Finance
-        startdate (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
+        tickers: List of ticker symbols
+        start_dates: List of start dates
+        end_dates: List of end dates
+        currency: Base currency
 
     Returns:
-        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for each ticker from start_date to end_date
+        Concatenated DataFrame with Ticker/Date multi-index
     """
     tickers = list(tickers)
     start_dates = list(start_dates)
     end_dates = list(end_dates)
+
     if len(tickers) == 0:
         logger.info('No tickers provided for price lookup; returning empty DataFrame')
         return pd.DataFrame()
@@ -81,52 +74,22 @@ def get_price_data(tickers: List, start_dates: List, end_dates: List, currency: 
     try:
         with ThreadPool(processes=10) as pool:
             all_data = pool.starmap(get_price_data_ticker, zip(
-                tickers, start_dates, end_dates, currency))
+                tickers, start_dates, end_dates, [currency] * len(tickers)))
             logger.debug('Obtained data, concatenating')
             filtered = [(df, ticker) for df, ticker in zip(all_data, tickers) if not df.empty]
             if not filtered:
                 logger.info('Price lookup returned no data for provided tickers')
                 return pd.DataFrame()
             all_data, tickers = zip(*filtered)
-            concat_data = pd.concat(
-                all_data, keys=tickers, names=['Ticker', 'Date'])
+            concat_data = pd.concat(all_data, keys=tickers, names=['Ticker', 'Date'])
     except ValueError as e:
-        raise ValueError(
-            f'Please provide at least one ticker. Error messagE: {e}')
+        raise ValueError(f'Please provide at least one ticker. Error: {e}')
     return concat_data
 
 
-def get_duplicates(lst):
-    counts = {}
-    duplicates = []
-
-    for item in lst:
-        if item in counts:
-            counts[item] += 1
-        else:
-            counts[item] = 1
-
-    for key, value in counts.items():
-        if value > 1:
-            duplicates.append(key)
-
-    return duplicates
-
-
 def get_loan_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """
-    Creates loan data dataframe containing -1 as close price and no stock splits or dividends
-
-    Args:
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
-
-    Returns:
-        pd.DataFrame: Dataframe close, split, dividend data for loans from start_date to end_date
-    """
-
-    df = pd.DataFrame(
-        {'Date': pd.date_range(start_date, end_date, freq='D')})
+    """Create synthetic price data for loan assets (fixed -1 close price)."""
+    df = pd.DataFrame({'Date': pd.date_range(start_date, end_date, freq='D')})
     df['Close'] = -1
     df['Splits'] = 0
     df['Dividends'] = 0
@@ -135,19 +98,8 @@ def get_loan_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
 
 
 def get_cash_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """
-    Creates loan data dataframe containing -1 as close price and no stock splits or dividends
-
-    Args:
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
-
-    Returns:
-        pd.DataFrame: Dataframe close, split, dividend data for loans from start_date to end_date
-    """
-
-    df = pd.DataFrame(
-        {'Date': pd.date_range(start_date, end_date, freq='D')})
+    """Create synthetic price data for cash assets (fixed 1 close price)."""
+    df = pd.DataFrame({'Date': pd.date_range(start_date, end_date, freq='D')})
     df['Close'] = 1
     df['Splits'] = 0
     df['Dividends'] = 0
@@ -156,209 +108,155 @@ def get_cash_data(start_date: datetime, end_date: datetime) -> pd.DataFrame:
 
 
 def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """
-    Gets price data for fund for specified period
+    """Get fund price data.
+
+    Uses custom_funds module (yfinance-backed), with investpy fallback removed
+    (investpy is unmaintained since 2022).
 
     Args:
-        ticker (str): String ticker with ISIN
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
+        isin: APIR code or ISIN (e.g. "AU60FID00151")
+        start_date: Start date
+        end_date: End date
 
     Returns:
-        pd.DataFrame: Dataframe containing close, split, dividend data for ticker from start_date to end_date
+        DataFrame with Close/Splits/Dividends columns, or None
     """
-    # check if there is a custom funds module, import and execute custom fund function
-    df = None
+    # Try custom_funds (yfinance-backed)
     try:
-        from utils.custom_funds import get_custom_fund_data
         df = get_custom_fund_data(isin, start_date, end_date)
-    except ImportError:
-        logger.error('No custom funds module available')
+        if isinstance(df, pd.DataFrame) and not df.empty:
+            return df
+    except Exception as e:
+        logger.warning(f'custom_funds lookup failed for {isin}: {e}')
 
-    # If not data loaded from custom funds, try investpy
-    if not isinstance(df, pd.DataFrame):
-        try:
-            fund_search = investpy.search_funds(by='isin', value=isin)
-            name = fund_search.at[0, 'name']
-            country = fund_search.at[0, 'country']
-            df = investpy.get_fund_historical_data(
-                fund=name, country=country, from_date=start_date.strftime('%d/%m/%Y'), to_date=end_date.strftime('%d/%m/%Y'))
-            df.drop('Currency', axis=1, inplace=True)
-            df.reset_index(inplace=True)
-        except (RuntimeError, ValueError, ConnectionError):
-            df = None
-
-    # if data downloaded, include nil stock splits and dividends (as info is not available)
-    if isinstance(df, pd.DataFrame):
-        df['Splits'] = 0
-        df['Dividends'] = 0
-        # df['Adjclose'] = df['Close']
-        df.set_index(['Date'], inplace=True, drop=True)
-
-    return df
-
-
-def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """
-    Gets price data for ticker for specified period from yahooquery
-
-    Args:
-        ticker (str): String ticker in format that is acceptable to Yahoo Finance
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
-
-    Returns:
-        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for ticker from start_date to end_date
-    """
+    # Fallback: try yfinance with a plain `.AX` suffix
     try:
-        df = yq.Ticker(ticker).history(
-            start=start_date, end=end_date).reset_index()
-        df.drop(columns='symbol', inplace=True)  # drop symbol column
-        df = df.rename(str.capitalize, axis=1).set_index('Date')
+        logger.info(f'Attempting yfinance direct lookup for {isin}')
+        df = yf.Ticker(f'{isin}.AX').history(
+            start=start_date, end=end_date, auto_adjust=False, rounding=False
+        )
+        if df is not None and not df.empty:
+            df = df.tz_localize(None)
+            df.rename(columns={'Stock Splits': 'Splits'}, inplace=True)
+            for col in ['Splits', 'Dividends']:
+                if col not in df.columns:
+                    df[col] = 0
+            return df
+    except Exception as e:
+        logger.debug(f'yfinance fallback failed for {isin}.AX: {e}')
 
-        # set date index to become datetime object
-        df.index = pd.to_datetime(df.index)
-        # remove TZ aware from downloaded data
-        df.index = df.index.tz_localize(None)
-        # remove times from dowloaded data to get clean dataset
-        df.index = pd.Index(df.index.date)
-
-        if 'Capital Gains' in df.columns:
-            df.drop(columns=["Capital Gains"], inplace=True)
-        df.index.names = ['Date']
-    except (KeyError, RuntimeError, ConnectionError, JSONDecodeError, TimeoutError, reqConnectionError) as e:
-        error_type = e.__class__.__name__
-        logger.error(
-            f'-------  {error_type} with Yahoo! Finance (ticker: {ticker}) -------', exc_info=True)
-        df = None
-    return df
+    return None
 
 
 def get_yf_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """
-    Gets price data for ticker for specified period from yfinance
+    """Get price data from yfinance.
 
     Args:
-        ticker (str): String ticker in format that is acceptable to Yahoo Finance
-        start_date (datetime): Start date to get price data
-        end_date (datetime): End date to get price data
+        ticker: Yahoo Finance ticker
+        start_date: Start date
+        end_date: End date
 
     Returns:
-        pd.DataFrame: Dataframe containing open, close, high, low, split, dividend data for ticker from start_date to end_date
+        DataFrame with yfinance price data, or None
     """
     try:
         df = yf.Ticker(ticker).history(
             start=start_date, end=end_date, auto_adjust=False, rounding=False)
-        df.rename(columns={'Stock Splits': 'Splits',
-                  'Adj Close': 'Adjclose'}, inplace=True)
-        df = df.tz_localize(None)  # remove TZ aware from downloaded data
+        df.rename(columns={'Stock Splits': 'Splits', 'Adj Close': 'Adjclose'}, inplace=True)
+        df = df.tz_localize(None)
         if 'Capital Gains' in df.columns:
-            df.drop(columns=["Capital Gains"], inplace=True)
-    except KeyError:
+            df.drop(columns=['Capital Gains'], inplace=True)
+    except Exception as e:
+        logger.error(f'yfinance error for {ticker}: {e}')
         df = None
-    except RuntimeError:
-        logger.debug(
-            f'-------  Yahoo! Finance is not working (ticker: {ticker}) -------')
-        df = None
-    except ConnectionError:
-        logger.debug(
-            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
-        df = None
-    except JSONDecodeError as e:
-        logger.debug(
-            f'-------  Connection error with Yahoo! Finance (ticker: {ticker}) -------')
-        logger.debug(e)
+    return df
+
+
+def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    """Get price data from yahooquery (legacy — prefer yfinance).
+
+    Kept for backward compatibility but yfinance is preferred.
+    """
+    try:
+        df = yq.Ticker(ticker).history(start=start_date, end=end_date).reset_index()
+        df.drop(columns='symbol', inplace=True)
+        df = df.rename(str.capitalize, axis=1).set_index('Date')
+        df.index = pd.to_datetime(df.index)
+        df.index = df.index.tz_localize(None)
+        df.index = pd.Index(df.index.date)
+        if 'Capital Gains' in df.columns:
+            df.drop(columns=['Capital Gains'], inplace=True)
+        df.index.names = ['Date']
+    except Exception as e:
+        logger.error(f'yahooquery error for {ticker}: {e}')
         df = None
     return df
 
 
 def get_name(ticker: str) -> str:
+    """Get the human-readable name for a ticker.
+
+    Uses yfinance; removes investpy dependency.
     """
-    Gets name of ticker
-
-    Args:
-        ticker (str): String ticker in format that is acceptable to Yahoo Finance
-
-    Returns:
-        str: Full name of stock based on ticker
-    """
-
-    logger.debug(f'Getting name for {ticker}')
     raw_ticker, ticker_type = split_ticker(ticker=ticker)
-    logger.debug([raw_ticker, ticker_type])
 
-    if ticker_type == 'STOCK':
-        try:
-            stock = yf.Ticker(ticker)
-            name = stock.info['shortName']
-        except (IndexError, KeyError, Exception, ValueError, AttributeError) as e:
-            logger.info(f'-------  Ticker name {ticker} not found -------')
-            logger.exception(f'-------  Error is {e} -------', stack_info=True)
-            name = "NA"
+    if ticker_type in ('STOCK', 'LOAN', 'CASH', 'FX', 'CRYPTO'):
+        if ticker_type == 'STOCK':
+            try:
+                stock = yf.Ticker(ticker)
+                name = stock.info.get('shortName', 'NA')
+            except Exception:
+                name = 'NA'
+        else:
+            name = raw_ticker.replace('=X', '')
     elif ticker_type == 'FUND':
-        try:
-            fund_search = investpy.search_funds(
-                by='isin', value=raw_ticker)
-            name = fund_search.at[0, 'name']
-        except (RuntimeError, ValueError):
-            name = "NA"
-    elif ticker_type == 'FX':
-        name = raw_ticker.replace('=X', '')
+        # Try yfinance info first
+        for candidate in [f'{raw_ticker}.AX', raw_ticker]:
+            try:
+                info = yf.Ticker(candidate).info
+                name = info.get('shortName') or info.get('longName') or 'NA'
+                if name != 'NA':
+                    break
+            except Exception:
+                name = 'NA'
     else:
-        # catch all for all other types including CRYPTO
-        name = raw_ticker
+        name = 'NA'
+
     return name
 
 
 def get_currency(ticker: str) -> str:
-    """
-    Gets quoted currency of ticker
-
-    Args:
-        ticker (str): String ticker in format that is acceptable to Yahoo Finance
-
-    Returns:
-        str: Full name of stock based on ticker
-    """
-
-    logger.debug(f'Getting quoted currency for {ticker}')
+    """Get the trading currency for a ticker."""
     raw_ticker, ticker_type = split_ticker(ticker=ticker)
 
     if ticker_type == 'STOCK':
         try:
             stock = yf.Ticker(ticker)
-            try:
-                currency = stock.info['currency']
-            except (IndexError, KeyError, Exception) as e:
-                logger.info(
-                    f'-------  Currency for {ticker} not found -------')
-                logger.debug(f'-------  Error is {e} -------')
-                currency = "NA"
-        except (ValueError, AttributeError):
-            logger.debug(
-                f'-------  Ticker {ticker} not found (currency) -------')
-            currency = "NA"
+            currency = stock.info.get('currency', 'NA')
+        except Exception:
+            currency = 'NA'
     elif ticker_type == 'FUND':
-        try:
-            df = investpy.search_funds(by='isin', value=raw_ticker)
-            currency = df.at[0, 'currency']
-        except (RuntimeError, ValueError, ConnectionError):
-            currency = "NA"
+        currency = 'AUD'
     elif ticker_type == 'CRYPTO':
-        currency = 'USD'  # set to USD to allow for max compatability and then use FX rates to convert to local currency
+        currency = 'USD'
     else:
-        currency = "NA"
+        currency = 'NA'
+
     return str(currency).upper()
 
 
 def get_ticker_type(ticker_type: str) -> str:
+    """Map a ticker type suffix to a canonical type."""
     if ticker_type not in ['LOAN', 'CASH', 'FUND', 'CRYPTO', 'FX']:
         return 'STOCK'
-    else:
-        return ticker_type
+    return ticker_type
 
 
 def split_ticker(ticker: str) -> Tuple[str, str]:
+    """Split a ticker symbol into raw ticker and type suffix.
+
+    E.g. 'BHP.AX' -> ('BHP.AX', 'STOCK'), 'AU60FID00151.FUND' -> ('AU60FID00151', 'FUND')
+    """
     if len(ticker.split('.')) < 2:
         ticker_type = None
     else:
@@ -369,8 +267,5 @@ def split_ticker(ticker: str) -> Tuple[str, str]:
 
 
 def get_currency_data(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
+    """Get FX rate data from yfinance."""
     return get_yf_price(ticker=ticker, start_date=start_date, end_date=end_date)
-
-
-if __name__ == '__main__':
-    print(get_name('SQ'))

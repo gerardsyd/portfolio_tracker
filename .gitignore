@@ -6,7 +6,6 @@ data/*
 logs/*
 flask_session/
 zArchive/
-utils/custom_funds.py
 portfolio_tracker.code-workspace
 *.bat
 *.log
