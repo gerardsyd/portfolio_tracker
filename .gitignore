@@ -6,19 +6,24 @@ data/*
 logs/*
 flask_session/
 zArchive/
-utils/custom_funds.py
 portfolio_tracker.code-workspace
 *.bat
 *.log
 .env
 *.json
-test.py
-*temp*
-app.yaml
-.gcloudignore
+*.xlsx
+test*.py
+db_temp.txt
 
 # Elastic Beanstalk Files
 .elasticbeanstalk/
 !.elasticbeanstalk/*.cfg.yml
 !.elasticbeanstalk/*.global.yml
 .ebignore
+
+# GCloud Files
+.gcloudignore
+app.yaml
+
+# custom files
+# app/api_routes.py

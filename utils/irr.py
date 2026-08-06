@@ -18,8 +18,7 @@ def npv(cf: List, rate: float = 0.1) -> float:
 
     if len(cf) >= 2:
         first_date = min([x[0] for x in cf])
-        dcf = [x[1] * (1 /
-                       ((1 + rate) ** ((x[0] - first_date).days / 365))) for x in cf]
+        dcf = [x[1] * (1 / ((1 + rate) ** ((x[0] - first_date).days / 365))) for x in cf]
         return sum(dcf)
     elif len(cf) == 1:
         return cf[0][1]

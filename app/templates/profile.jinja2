@@ -1,0 +1,64 @@
+{% extends 'base.jinja2' %}
+{% set active_page = "profile" %}
+
+{% block app_head %}
+<style>
+    div {
+        max-width: 800px
+    }
+</style>
+{% endblock %}
+
+{% block app_content %}
+<div class="container">
+    <h2>Profile Page</h2>
+    <p>
+    <h3>Hi {{current_user.username}}</h3>
+    <p class="font-weight-light font-italic">Last seen on: {{ current_user.last_accessed }}</p>
+    <p>
+</div>
+<div class="container">
+    <h4> Edit Profile</h4>
+    <p class="font-weight-bold font-italic text-danger">Please enter existing password to change email, password or
+        currency</p>
+    <form action="" method="post">
+        {{ form.hidden_tag() }}
+        <p>
+            {{ form.email.label }}<br>
+            {{ form.email(size=32) }}<br>
+            {% for error in form.email.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.existing_password.label }}<br>
+            {{ form.existing_password(size=32) }}<br>
+            {% for error in form.existing_password.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.password.label }}<br>
+            {{ form.password(size=32) }}<br>
+            {% for error in form.password.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.password2.label }}<br>
+            {{ form.password2(size=32) }}<br>
+            {% for error in form.password2.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>
+            {{ form.currency.label }}<br>
+            {{ form.currency(size=32) }}<br>
+            {% for error in form.currency.errors %}
+            <span style="color: red;">[{{ error }}]</span>
+            {% endfor %}
+        </p>
+        <p>{{ form.submit() }}</p>
+    </form>
+</div>
+{% endblock %}

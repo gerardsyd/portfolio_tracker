@@ -1,0 +1,30 @@
+{% extends 'base.jinja2' %}
+{% set active_page = "trade" %}
+
+{% block app_head %}
+<style>
+div{
+    max-width: 800px
+}
+</style>
+{% endblock %}
+
+{% block app_content %}
+<div class="container">
+    <h2>View Portfolio Trades</h2>
+    <p>
+    <div><b>{{message}}</b></div>
+    <p>
+</div>
+<div class="container-fluid"><div class ="row justify-content-center">
+    <form method="post">
+    <button type="submit">Update & Save</button>
+    <a href="/"><button type="button">Back</button></a>
+        <div class="table-responsive">
+            {{tables}}
+        </div>
+    <button type="submit">Update & Save</button>
+    <a href="/"><button type="button">Back</button></a>
+    </form>
+</div></div>
+{% endblock %}

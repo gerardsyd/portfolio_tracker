@@ -1,0 +1,266 @@
+{% extends 'base.jinja2' %}
+{% set active_page = "utilities" %}
+
+{% block app_styles %}
+<link rel="stylesheet" type="text/css"
+    href="https://cdn.datatables.net/v/dt/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.css" />
+<style>
+    table#T_navsummary.dataTable {
+        font-size: 14px
+    }
+
+    th {
+        font-size: 14px;
+        text-align: right
+    }
+
+    tr {
+        font-size: 14px;
+        text-align: right
+    }
+
+    table#T_navsummary.dataTable thead th:first-child {
+        text-align: left;
+    }
+
+    table#T_navsummary.dataTable tbody td:first-child {
+        text-align: left;
+    }
+
+    table#T_navsummary.dataTable tbody tr:hover {
+        background-color: #dff
+    }
+
+    table#T_navsummary.dataTable tbody tr:hover>.sorting_1 {
+        background-color: #dff
+    }
+
+    .td-left {
+        text-align: left
+    }
+
+    .container-fluid {
+        padding: 2%;
+    }
+
+    .metric-card {
+        background-color: #f8f9fa;
+        border: 1px solid #dee2e6;
+        border-radius: 0.375rem;
+        padding: 1rem;
+        margin-bottom: 1rem;
+    }
+
+    .metric-value {
+        font-size: 1.5rem;
+        font-weight: bold;
+        color: #495057;
+    }
+
+    .metric-label {
+        font-size: 0.875rem;
+        color: #6c757d;
+        margin-bottom: 0.25rem;
+    }
+</style>
+{% endblock app_styles %}
+
+{% block app_content %}
+<div class="container">
+    <h2>NAV Tracking for {{ current_user.username }}</h2>
+
+    <!-- Form for date range and actions -->
+    <form action="/portfolio/nav" method="post" class="mb-4">
+        <div class="form-row align-items-end">
+            <div class="col-md-2 col-sm-4 mb-2">
+                <label class="form-label text-left" for="start_date">Start Date</label>
+                <input type="date" name="start_date" id="start_date" class="form-control">
+            </div>
+            <div class="col-md-2 col-sm-4 mb-2">
+                <label class="form-label text-left" for="end_date">End Date</label>
+                <input type="date" name="end_date" id="end_date" class="form-control">
+            </div>
+            <div class="col-md-4 col-sm-8 mb-2 d-flex">
+                <input type="submit" name="action" value="View NAV" class="btn btn-primary mr-2 flex-fill">
+                <button type="submit" name="action" value="force_recalc" class="btn btn-warning flex-fill">Force NAV Recalculation</button>
+            </div>
+        </div>
+        <input type="hidden" name="time_offset" id="time_offset" value="0">
+    </form>
+
+    <!-- Performance Metrics Cards -->
+    {% if metrics %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Current NAV per Unit</div>
+                <div class="metric-value">${{ "{:.2f}".format(metrics.current_nav_per_unit or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Total Return</div>
+                <div class="metric-value">{{ "%.2f"|format(metrics.total_return_pct) }}%</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Annualized Return</div>
+                <div class="metric-value">{{ "%.2f"|format(metrics.annualized_return_pct) }}%</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Total Units</div>
+                <div class="metric-value">{{ "{:,.0f}".format(metrics.current_total_units or 0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Portfolio Value</div>
+                <div class="metric-value">${{ "{:,.0f}".format(metrics.current_portfolio_value or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">IRR (Money Weighted)</div>
+                <div class="metric-value">{{ "%.2f"|format(metrics.irr_pct) }}%</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Days in Period</div>
+                <div class="metric-value">{{ metrics.days_in_period }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Inception Date</div>
+                <div class="metric-value">{{ metrics.inception_date.strftime('%Y-%m-%d') }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if metrics and metrics.price_warning %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="alert alert-warning" role="alert">
+                {{ metrics.price_warning }}
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if nav_totals %}
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">New Capital Invested</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.capital_invested or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Capital Withdrawn</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.capital_withdrawn or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Net New Capital</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.net_new_capital or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Investment Gain / (Loss)</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.investment_gain or 0) }}</div>
+            </div>
+        </div>
+    </div>
+    <div class="row mb-4">
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Dividends Received</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.dividends_received or 0) }}</div>
+            </div>
+        </div>
+        <div class="col-md-3">
+            <div class="metric-card">
+                <div class="metric-label">Net Cash After Dividends</div>
+                <div class="metric-value">${{ "{:,.0f}".format(nav_totals.net_cash_after_dividends or 0) }}</div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if nav_chart %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {{ nav_chart | safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+
+    {% if nav_total_chart %}
+    <div class="row mb-4">
+        <div class="col-12">
+            <div class="card shadow-sm">
+                <div class="card-body">
+                    {{ nav_total_chart | safe }}
+                </div>
+            </div>
+        </div>
+    </div>
+    {% endif %}
+    <p>
+</div>
+
+<div class="container-fluid">
+    <div class="table-responsive">
+        {% for table in tables %}
+        {{table}}
+        {%endfor%}
+    </div>
+</div>
+{% endblock %}
+
+{% block app_scripts %}
+
+<script type="text/javascript"
+    src="https://cdn.datatables.net/v/bs4/jszip-2.5.0/dt-1.10.23/b-1.6.5/b-colvis-1.6.5/b-html5-1.6.5/b-print-1.6.5/cr-1.5.3/fc-3.3.2/fh-3.1.8/r-2.2.7/rg-1.1.2/datatables.min.js"></script>
+
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.21/sorting/absolute.js"></script>
+<script type="text/javascript" src="https://cdn.datatables.net/plug-ins/1.10.24/sorting/enum.js"></script>
+<script>
+    $(document).ready(function () {
+        $('#T_navsummary').DataTable({
+            autoWidth: false,
+            colReorder: false,
+            fixedHeader: {
+                footer: true
+            },
+            fixedColumns: {
+                leftColumns: 1
+            },
+            ordering: false,
+            paging: false,
+            responsive: true,
+            searching: false
+        });
+
+        var d = new Date();
+        var n = d.getTimezoneOffset();
+        document.getElementById("time_offset").value = n;
+    });
+
+
+</script>
+{% endblock app_scripts %}
