@@ -4,6 +4,14 @@ import tempfile
 
 import pytest
 
+# Must be set BEFORE importing the app so the SQLAlchemy engine binds to a
+# writable temp DB rather than the default data/app.db
+_db_file = tempfile.NamedTemporaryFile(suffix=".db", delete=False)
+os.environ.setdefault("DATABASE_URL", f"sqlite:///{_db_file.name}")
+os.environ.setdefault("SECRET_KEY", "test-secret")
+os.environ.setdefault("API_TOKEN", "test-token")
+os.environ.setdefault("REGISTRATION_ENABLED", "False")
+
 
 @pytest.fixture(scope="session")
 def app():
@@ -11,13 +19,18 @@ def app():
     from app import app as flask_app
     flask_app.config.update({
         "TESTING": True,
-        "SQLALCHEMY_DATABASE_URI": "sqlite:///:memory:",
+        "SQLALCHEMY_DATABASE_URI": f"sqlite:///{_db_file.name}",
         "API_TOKEN": "test-token",
         "WTF_CSRF_ENABLED": False,
         "SECRET_KEY": "test-secret",
         "REGISTRATION_ENABLED": False,
     })
     yield flask_app
+    # Clean up temp db after session
+    try:
+        os.unlink(_db_file.name)
+    except OSError:
+        pass
 
 
 @pytest.fixture(scope="function")

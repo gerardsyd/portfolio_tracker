@@ -85,6 +85,9 @@ def neg_red(val: float):
     strings, green otherwise.
     """
     try:
+        # Treat NaN as neutral (black) rather than green
+        if val is None or (isinstance(val, float) and val != val):
+            return 'color: black'
         color = 'red' if val < 0 else 'limegreen'
     except TypeError:
         # catch Na / NaN / strings / empty fields
@@ -110,7 +113,7 @@ def stock_link(value: str):
 
 
 def update_links(html: str, currency: str, date: str):
-    pattern = '(\/stock\/[\w\d.]*)'
+    pattern = r'(\/stock\/[\w\d.]*)'
     link = f'?currency={currency}&date={date}'
     html = re.sub(pattern, r'\1{}'.format(link), html)
     return html

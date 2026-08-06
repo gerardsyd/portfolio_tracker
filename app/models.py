@@ -549,6 +549,8 @@ class User(UserMixin, db.Model):
         Returns:
             pd.DataFrame: Updated hist_pos dataframe including capital gains information
         """
+        if start_date is None:
+            start_date = hist_pos['Date'].min()
         hist_pos['CF'] = np.where(hist_pos.Direction == 'Buy', -1, 1) * (
             hist_pos.Quantity * hist_pos.Price * hist_pos.Fx) - (hist_pos.Fees * hist_pos.Fx)
         hist_pos['CFBuy'] = np.where(
@@ -587,7 +589,7 @@ class User(UserMixin, db.Model):
 
         """
         df['Fx'] = np.where(
-            df['Currency'] == self.default_currency, float(1), np.NaN)
+            df['Currency'] == self.default_currency, float(1), np.nan)
 
         # Avoid iterrows() to prevent RangeIndex issues
         df = df.reset_index(drop=True)  # Ensure clean integer index
@@ -750,7 +752,10 @@ class User(UserMixin, db.Model):
         ]
 
         # Create a pandas DataFrame from the list of dictionaries
-        df = pd.DataFrame(latest_prices_dicts).rename(
+        df = pd.DataFrame(latest_prices_dicts)
+        if df.empty:
+            return pd.DataFrame(columns=columns)
+        df = df.rename(
             str.capitalize, axis=1).astype(col_types)[columns]
         return df
 
@@ -766,7 +771,10 @@ class User(UserMixin, db.Model):
             pd.DataFrame: dataframe which includes the average price calculated
         """
         # create group for each group of shares bought / sold
-        df['grouping'] = df['CumQuan'].eq(0).shift().cumsum().fillna(0)
+        # Ensure CumQuan is numeric before cumsum (handles NaN/object dtype)
+        cum_quan = pd.to_numeric(df['CumQuan'], errors='coerce').fillna(0)
+        df['grouping'] = cum_quan.eq(0).shift(1, fill_value=False).cumsum()
+        df['grouping'] = pd.to_numeric(df['grouping'], errors='coerce').fillna(0)
         avg_price_df = df.groupby('grouping', as_index=False).apply(
             lambda x: x.CFBuy.sum() / x.QBuy.sum()).reset_index(drop=True)
         avg_price_df.columns = ['grouping', 'AvgCostAdj']
@@ -927,7 +935,7 @@ class User(UserMixin, db.Model):
             return pd.DataFrame()
 
         prices = prices.reset_index()
-        prices = prices.replace(np.NaN, None)
+        prices = prices.replace(np.nan, None)
 
         # iterate through rows in prices to update SQL database with updated prices where already existing or to append new data
         price_data_list = []

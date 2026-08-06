@@ -1,4 +1,5 @@
 import logging
+import os
 import sys
 
 from flask import Flask
@@ -8,8 +9,10 @@ from flask_migrate import Migrate
 
 from config import Config
 
-# set up logging
-file_handler = logging.FileHandler(filename=r'logs/logs.log')
+# set up logging — create logs dir if it doesn't exist
+log_dir = os.path.join(os.path.dirname(os.path.dirname(__file__)), 'logs')
+os.makedirs(log_dir, exist_ok=True)
+file_handler = logging.FileHandler(filename=os.path.join(log_dir, 'logs.log'))
 stdout_handler = logging.StreamHandler(sys.stdout)
 handlers = [file_handler, stdout_handler]
 logging.basicConfig(format='%(asctime)s %(levelname)-8s [%(filename)s:%(lineno)d] %(message)s',

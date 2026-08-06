@@ -13,7 +13,7 @@ from flask_login.utils import login_required
 import pandas as pd
 import plotly.graph_objects as go
 import plotly.io as pio
-from werkzeug.urls import url_parse
+from urllib.parse import urlparse
 
 from app import app, db
 from app.forms import LoginForm, RegistrationForm, UpdateDetailsForm
@@ -44,7 +44,7 @@ def login():
             return redirect(url_for('login'))
         login_user(user, remember=form.remember_me.data)
         next_page = request.args.get('next')
-        if not next_page or url_parse(next_page).netloc != '':
+        if not next_page or urlparse(next_page).netloc != '':
             next_page = url_for('index')
         return redirect(next_page)
     return render_template('login.jinja2', title='Sign In', form=form)

@@ -21,7 +21,7 @@ xlsxwriter==3.2.9
 yfinance==1.5.2
 
 # Charts
-plotly==5.25.0
+plotly==5.24.1
 
 # Security
 cryptography==50.0.0

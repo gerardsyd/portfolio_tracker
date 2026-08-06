@@ -42,4 +42,4 @@ def irr(cf: List) -> float:
     if r.get('success'):
         return round(r.get('x')[0], 4)
     else:
-        return np.NaN
+        return np.nan
