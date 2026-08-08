@@ -2071,7 +2071,7 @@ class User(UserMixin, db.Model):
         )
 
         # Generate month-end dates inclusive of partial months
-        month_ends = pd.period_range(start_date, end_date, freq='ME').to_timestamp('M').tolist()
+        month_ends = pd.period_range(start_date, end_date, freq='M').to_timestamp('M').tolist()
         if not month_ends:
             month_ends = [pd.Timestamp(end_date)]
 
