@@ -20,6 +20,9 @@ xlsxwriter==3.2.9
 # Market data
 yfinance==1.5.2
 
+# Crypto (Binance API)
+python-binance==1.0.37
+
 # Charts
 plotly==5.24.1
 
