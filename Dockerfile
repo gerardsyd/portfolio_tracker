@@ -8,6 +8,7 @@ WORKDIR /pftrackr
 # Install system deps (mysqlclient + lxml compile deps)
 RUN apt-get update && apt-get install -y --no-install-recommends \
     gcc \
+    pkg-config \
     default-libmysqlclient-dev \
     libxml2-dev \
     libxslt1-dev \
