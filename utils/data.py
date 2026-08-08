@@ -5,7 +5,6 @@ from typing import List, Tuple
 
 import pandas as pd
 import yfinance as yf
-import yahooquery as yq
 
 from utils.crypto import get_crypto_price
 from utils.custom_funds import get_custom_fund_data
@@ -168,27 +167,6 @@ def get_yf_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.Da
             df.drop(columns=['Capital Gains'], inplace=True)
     except Exception as e:
         logger.error(f'yfinance error for {ticker}: {e}')
-        df = None
-    return df
-
-
-def get_yq_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
-    """Get price data from yahooquery (legacy — prefer yfinance).
-
-    Kept for backward compatibility but yfinance is preferred.
-    """
-    try:
-        df = yq.Ticker(ticker).history(start=start_date, end=end_date).reset_index()
-        df.drop(columns='symbol', inplace=True)
-        df = df.rename(str.capitalize, axis=1).set_index('Date')
-        df.index = pd.to_datetime(df.index)
-        df.index = df.index.tz_localize(None)
-        df.index = pd.Index(df.index.date)
-        if 'Capital Gains' in df.columns:
-            df.drop(columns=['Capital Gains'], inplace=True)
-        df.index.names = ['Date']
-    except Exception as e:
-        logger.error(f'yahooquery error for {ticker}: {e}')
         df = None
     return df
 
