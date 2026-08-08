@@ -3,4 +3,4 @@ workers = 4
 accesslog = "-"
 errorlog = "-"
 capture_output = True
-timeout = 120
+timeout = 300
