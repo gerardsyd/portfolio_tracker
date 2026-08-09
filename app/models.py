@@ -1175,7 +1175,12 @@ class User(UserMixin, db.Model):
 
     def _portfolio_value_on(self, as_at_date: datetime) -> Optional[float]:
         """
-        Retrieve the total portfolio value for the user as at a given date.
+        Retrieve the total portfolio value for the user as at a given date using
+        positions and prices already stored in the database.
+
+        This intentionally avoids ``info_date()``: month-end NAV needs neither
+        performance calculations nor IRR, and normal NAV views must not trigger
+        a market-data refresh.
 
         Returns:
             float: Portfolio value, or None if unavailable.
@@ -1183,24 +1188,85 @@ class User(UserMixin, db.Model):
         if as_at_date is None:
             return None
 
-        try:
-            logger.info(f'Fetching portfolio value for {as_at_date}')
-            portfolio_info, _ = self.info_date(as_at_date=as_at_date, hide_zero_pos=True)
-        except Exception as exc:
-            logger.debug(f'Unable to fetch portfolio value for {as_at_date}: {exc}')
+        as_of_ts = pd.Timestamp(as_at_date)
+        holdings = db.session.query(
+            Trades.ticker,
+            Stocks.currency,
+            Trades.date,
+            Trades.quantity,
+            Trades.direction
+        ).join(
+            Stocks, Trades.ticker == Stocks.ticker
+        ).filter(
+            Trades.user_id == self.id,
+            Trades.date <= as_of_ts.to_pydatetime()
+        ).order_by(Trades.ticker, Trades.date, Trades.id).all()
+
+        if not holdings:
             return None
 
-        if portfolio_info.empty:
-            return None
+        positions: Dict[str, Dict] = {}
+        for ticker, currency, trade_date, quantity, direction in holdings:
+            if ticker not in positions:
+                positions[ticker] = {'currency': currency, 'trades': []}
+            direction = str(direction).lower()
+            if direction == 'buy':
+                quantity_delta = float(quantity or 0.0)
+            elif direction == 'sell':
+                quantity_delta = -float(quantity or 0.0)
+            else:
+                continue
+            positions[ticker]['trades'].append((trade_date, quantity_delta))
 
-        total_row = portfolio_info[portfolio_info['Ticker'] == 'Total']
-        if total_row.empty:
-            return None
+        total_value = 0.0
+        valued_position_count = 0
+        for ticker, position in positions.items():
+            quantity = 0.0
+            splits = db.session.query(
+                StockPrices.date,
+                StockPrices.splits
+            ).filter(
+                StockPrices.ticker == ticker,
+                StockPrices.date <= as_of_ts.to_pydatetime(),
+                StockPrices.splits.isnot(None),
+                StockPrices.splits != 0
+            ).order_by(StockPrices.date).all()
+            for trade_date, quantity_delta in position['trades']:
+                adjusted_quantity = quantity_delta
+                for split_date, split in splits:
+                    if trade_date <= split_date:
+                        adjusted_quantity *= float(split)
+                quantity += adjusted_quantity
+            if not quantity:
+                continue
 
-        try:
-            return float(total_row['CurrVal'].iloc[0])
-        except (TypeError, ValueError, IndexError):
-            return None
+            price_row = db.session.query(
+                StockPrices.date,
+                StockPrices.close
+            ).filter(
+                StockPrices.ticker == ticker,
+                StockPrices.date <= as_of_ts.to_pydatetime()
+            ).order_by(StockPrices.date.desc()).first()
+            if price_row is None or price_row.close is None:
+                logger.debug('No stored price for %s on or before %s', ticker, as_of_ts.date())
+                continue
+
+            fx = 1.0
+            currency = position['currency']
+            ticker_type = data.split_ticker(ticker)[1]
+            if currency != self.default_currency and ticker_type not in ('CASH', 'LOAN'):
+                fx_ticker = f'{currency}{self.default_currency}=X.FX'
+                fx_value = db.session.query(StockPrices.close).filter(
+                    StockPrices.ticker == fx_ticker,
+                    StockPrices.date <= price_row.date
+                ).order_by(StockPrices.date.desc()).scalar()
+                if fx_value is not None:
+                    fx = float(fx_value)
+
+            total_value += quantity * float(price_row.close) * fx
+            valued_position_count += 1
+
+        return total_value if valued_position_count else None
 
     def _get_nav_snapshot(
         self,
@@ -1765,7 +1831,7 @@ class User(UserMixin, db.Model):
                         total_units_stale = 0.0
                     if nav_per_unit_stale is None:
                         nav_per_unit_stale = 0.0
-                    if portfolio_value and total_units_stale and nav_per_unit_stale == 0.0:
+                    if portfolio_value and total_units_stale:
                         nav_per_unit_stale = portfolio_value / total_units_stale
                     if portfolio_value == 0.0 and total_units_stale and nav_per_unit_stale:
                         portfolio_value = nav_per_unit_stale * total_units_stale
@@ -1829,9 +1895,14 @@ class User(UserMixin, db.Model):
                 if total_units == 0.0 and carry_units:
                     total_units = carry_units
 
-                if nav_per_unit == 0.0:
+                # Units only change with external capital flows, so they may be
+                # carried forward from the latest trade.  NAV per unit must be
+                # revalued at every month end from the stored portfolio value.
+                if total_units and portfolio_value:
+                    nav_per_unit = portfolio_value / total_units
+                elif nav_per_unit == 0.0:
                     if total_units:
-                        nav_per_unit = portfolio_value / total_units if portfolio_value else carry_nav
+                        nav_per_unit = carry_nav
                     elif carry_nav:
                         nav_per_unit = carry_nav
 
@@ -1918,6 +1989,9 @@ class User(UserMixin, db.Model):
 
             if portfolio_value == 0.0 and total_units and nav_per_unit:
                 portfolio_value = nav_per_unit * total_units
+
+            if total_units and portfolio_value:
+                nav_per_unit = portfolio_value / total_units
 
             computed_rows[month_date] = {
                 'Month_End_Date': month_ts,
