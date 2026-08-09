@@ -3,7 +3,7 @@ from decimal import Decimal
 
 import pytest
 
-from app.models import StockPrices, Stocks, Trades, User
+from app.models import PortfolioMonthlyNav, StockPrices, Stocks, Trades, User
 
 
 def _add_price(ticker, price_date, close):
@@ -65,6 +65,11 @@ def test_monthly_nav_revalues_per_unit_when_units_carry_forward(db, monkeypatch)
     assert february['Total_Units'] == pytest.approx(10.0)
     assert february['Portfolio_Value'] == pytest.approx(80.0)
     assert february['NAV_per_Unit'] == pytest.approx(8.0)
+    cached_february = PortfolioMonthlyNav.query.filter_by(
+        user_id=user.id,
+        month_end=datetime(2026, 2, 28).date()
+    ).one()
+    assert not cached_february.needs_refresh
 
 
 def test_portfolio_value_on_uses_latest_stored_fx_rate(db):
@@ -85,3 +90,16 @@ def test_portfolio_value_on_uses_latest_stored_fx_rate(db):
     db.session.commit()
 
     assert user._portfolio_value_on(datetime(2026, 1, 31)) == pytest.approx(80.0)
+
+
+def test_portfolio_value_on_falls_back_to_last_transaction_price(db):
+    user = User(username='fallback-nav-user', email='fallback-nav@example.com', default_currency='AUD')
+    db.session.add_all([user, Stocks(ticker='UNPRICED', name='Unpriced', currency='AUD')])
+    db.session.flush()
+    db.session.add(
+        Trades(user_id=user.id, ticker='UNPRICED', date=datetime(2026, 1, 5),
+               quantity=Decimal('10'), price=Decimal('7.50'), fees=0, direction='Buy')
+    )
+    db.session.commit()
+
+    assert user._portfolio_value_on(datetime(2026, 1, 31)) == pytest.approx(75.0)

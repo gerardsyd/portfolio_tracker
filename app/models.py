@@ -976,6 +976,9 @@ class User(UserMixin, db.Model):
                 synchronize_session=False
             )
         db.session.commit()
+        earliest_price_date = pd.to_datetime(prices['Date']).min()
+        if pd.notna(earliest_price_date):
+            self.mark_monthly_nav_cache_stale(earliest_price_date.to_pydatetime())
 
         logger.info(f'price update took {(datetime.now()-start)} to run')
         return prices
@@ -1194,6 +1197,7 @@ class User(UserMixin, db.Model):
             Stocks.currency,
             Trades.date,
             Trades.quantity,
+            Trades.price,
             Trades.direction
         ).join(
             Stocks, Trades.ticker == Stocks.ticker
@@ -1206,9 +1210,14 @@ class User(UserMixin, db.Model):
             return None
 
         positions: Dict[str, Dict] = {}
-        for ticker, currency, trade_date, quantity, direction in holdings:
+        for ticker, currency, trade_date, quantity, trade_price, direction in holdings:
             if ticker not in positions:
-                positions[ticker] = {'currency': currency, 'trades': []}
+                positions[ticker] = {
+                    'currency': currency,
+                    'trades': [],
+                    'last_trade_price': None,
+                    'last_trade_date': None
+                }
             direction = str(direction).lower()
             if direction == 'buy':
                 quantity_delta = float(quantity or 0.0)
@@ -1217,6 +1226,9 @@ class User(UserMixin, db.Model):
             else:
                 continue
             positions[ticker]['trades'].append((trade_date, quantity_delta))
+            if trade_price is not None:
+                positions[ticker]['last_trade_price'] = float(trade_price)
+                positions[ticker]['last_trade_date'] = trade_date
 
         total_value = 0.0
         valued_position_count = 0
@@ -1248,8 +1260,25 @@ class User(UserMixin, db.Model):
                 StockPrices.date <= as_of_ts.to_pydatetime()
             ).order_by(StockPrices.date.desc()).first()
             if price_row is None or price_row.close is None:
-                logger.debug('No stored price for %s on or before %s', ticker, as_of_ts.date())
-                continue
+                price = position['last_trade_price']
+                valuation_date = position['last_trade_date']
+                if price is None or valuation_date is None:
+                    logger.warning(
+                        'No market or transaction price for %s on or before %s; valuing at zero',
+                        ticker,
+                        as_of_ts.date()
+                    )
+                    valued_position_count += 1
+                    continue
+                logger.warning(
+                    'No stored market price for %s on or before %s; using transaction price from %s',
+                    ticker,
+                    as_of_ts.date(),
+                    valuation_date
+                )
+            else:
+                price = float(price_row.close)
+                valuation_date = price_row.date
 
             fx = 1.0
             currency = position['currency']
@@ -1258,12 +1287,12 @@ class User(UserMixin, db.Model):
                 fx_ticker = f'{currency}{self.default_currency}=X.FX'
                 fx_row = db.session.query(StockPrices.close).filter(
                     StockPrices.ticker == fx_ticker,
-                    StockPrices.date <= price_row.date
+                    StockPrices.date <= valuation_date
                 ).order_by(StockPrices.date.desc()).first()
                 if fx_row is not None and fx_row.close is not None:
                     fx = float(fx_row.close)
 
-            total_value += quantity * float(price_row.close) * fx
+            total_value += quantity * price * fx
             valued_position_count += 1
 
         return total_value if valued_position_count else None
@@ -1784,15 +1813,6 @@ class User(UserMixin, db.Model):
 
         existing_map = {row.month_end: row for row in existing_rows}
         latest_price_date = latest_price_ts.date() if latest_price_ts else None
-        if latest_price_date:
-            stale_rows = []
-            for row in existing_rows:
-                if row.month_end > latest_price_date and not row.needs_refresh:
-                    row.needs_refresh = True
-                    stale_rows.append(row)
-            if stale_rows:
-                db.session.add_all(stale_rows)
-                db.session.commit()
         months_to_refresh = sorted(
             month for month in month_end_dates
             if month not in existing_map or existing_map[month].needs_refresh
@@ -1822,36 +1842,6 @@ class User(UserMixin, db.Model):
                 month_ts = pd.Timestamp(month_date)
                 portfolio_value = self._portfolio_value_on(month_ts) or 0.0
                 capital_flow, dividend_flow = _month_flows(month_ts)
-
-                if latest_price_date and month_ts.date() > latest_price_date:
-                    units_from_trade, nav_from_trade = self._get_nav_from_trades(month_ts, trades_df=trades_df)
-                    total_units_stale = units_from_trade if units_from_trade is not None else carry_units
-                    nav_per_unit_stale = nav_from_trade if nav_from_trade is not None else carry_nav
-                    if total_units_stale is None:
-                        total_units_stale = 0.0
-                    if nav_per_unit_stale is None:
-                        nav_per_unit_stale = 0.0
-                    if portfolio_value and total_units_stale:
-                        nav_per_unit_stale = portfolio_value / total_units_stale
-                    if portfolio_value == 0.0 and total_units_stale and nav_per_unit_stale:
-                        portfolio_value = nav_per_unit_stale * total_units_stale
-                    row = existing_map.get(month_date)
-                    if row is not None:
-                        row.needs_refresh = True
-                        db.session.add(row)
-                        cache_modified = True
-                    computed_rows[month_date] = {
-                        'Month_End_Date': month_ts,
-                        'Portfolio_Value': float(portfolio_value or 0.0),
-                        'Total_Units': float(total_units_stale or 0.0),
-                        'NAV_per_Unit': float(nav_per_unit_stale or 0.0),
-                        'Capital_Flow': float(capital_flow or 0.0),
-                        'Dividend_Flow': float(dividend_flow or 0.0)
-                    }
-                    carry_units = float(total_units_stale or 0.0)
-                    carry_nav = float(nav_per_unit_stale or 0.0)
-                    carry_value = float(portfolio_value or 0.0)
-                    continue
 
                 units_from_trade, nav_from_trade = self._get_nav_from_trades(month_ts, trades_df=trades_df)
                 total_units = units_from_trade
@@ -1890,7 +1880,7 @@ class User(UserMixin, db.Model):
                     nav_per_unit = 0.0
 
                 row = existing_map.get(month_date)
-                should_cache = month_date <= today_month_end and (latest_price_date is None or month_date <= latest_price_date)
+                should_cache = month_date <= today_month_end
 
                 if total_units == 0.0 and carry_units:
                     total_units = carry_units
@@ -2025,7 +2015,7 @@ class User(UserMixin, db.Model):
                 continue
 
             row = final_map.get(month_date)
-            if row is None or (month_date > today_month_end and row.needs_refresh) or (latest_price_date and month_date > latest_price_date):
+            if row is None or (month_date > today_month_end and row.needs_refresh):
                 continue
             data_rows.append({
                 'Month_End_Date': pd.Timestamp(row.month_end),
@@ -2093,7 +2083,7 @@ class User(UserMixin, db.Model):
             logger.info(f'Found trades missing NAV data from {recalc_from_date}')
 
         # Calculate NAV history
-        nav_df = self.calculate_nav_history(recalc_from_date, end_date=end_date)
+        nav_df = self.calculate_nav_history(recalc_from_date, end_date=recalc_end or end_date)
 
         if nav_df.empty:
             logger.warning('No NAV data to update')
