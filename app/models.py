@@ -450,10 +450,12 @@ class User(UserMixin, db.Model):
         hist_pos_statement = db.session.query(Trades, Stocks.currency).where(
             Trades.date <= as_at_date, Trades.user_id == self.id, Trades.ticker == Stocks.ticker).statement
         hist_pos = pd.read_sql(hist_pos_statement, db.engine).drop(
-            columns=['id', 'user_id', 'pf_price', 'pf_shares']).rename(str.capitalize, axis=1)
+            columns=['user_id', 'pf_price', 'pf_shares']).rename(str.capitalize, axis=1)
         if tickers is not None:
             hist_pos = hist_pos[hist_pos['Ticker'].isin(tickers)].copy()
-        hist_pos.sort_values(['Date', 'Ticker'], inplace=True)
+        
+        # Sort by Date, Ticker AND Id to ensure deterministic order (critical for merge_asof)
+        hist_pos.sort_values(['Date', 'Ticker', 'Id'], inplace=True)
 
         logger.debug(hist_pos[hist_pos['Direction'] == 'Div'])
 
