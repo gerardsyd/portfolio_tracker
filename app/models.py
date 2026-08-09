@@ -1256,12 +1256,12 @@ class User(UserMixin, db.Model):
             ticker_type = data.split_ticker(ticker)[1]
             if currency != self.default_currency and ticker_type not in ('CASH', 'LOAN'):
                 fx_ticker = f'{currency}{self.default_currency}=X.FX'
-                fx_value = db.session.query(StockPrices.close).filter(
+                fx_row = db.session.query(StockPrices.close).filter(
                     StockPrices.ticker == fx_ticker,
                     StockPrices.date <= price_row.date
-                ).order_by(StockPrices.date.desc()).scalar()
-                if fx_value is not None:
-                    fx = float(fx_value)
+                ).order_by(StockPrices.date.desc()).first()
+                if fx_row is not None and fx_row.close is not None:
+                    fx = float(fx_row.close)
 
             total_value += quantity * float(price_row.close) * fx
             valued_position_count += 1

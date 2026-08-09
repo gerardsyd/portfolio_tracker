@@ -65,3 +65,23 @@ def test_monthly_nav_revalues_per_unit_when_units_carry_forward(db, monkeypatch)
     assert february['Total_Units'] == pytest.approx(10.0)
     assert february['Portfolio_Value'] == pytest.approx(80.0)
     assert february['NAV_per_Unit'] == pytest.approx(8.0)
+
+
+def test_portfolio_value_on_uses_latest_stored_fx_rate(db):
+    user = User(username='fx-nav-user', email='fx-nav@example.com', default_currency='AUD')
+    db.session.add_all([
+        user,
+        Stocks(ticker='USSTOCK', name='US Stock', currency='USD'),
+        Stocks(ticker='USDAUD=X.FX', name='USD/AUD', currency='AUD'),
+    ])
+    db.session.flush()
+    db.session.add_all([
+        Trades(user_id=user.id, ticker='USSTOCK', date=datetime(2026, 1, 5),
+               quantity=Decimal('10'), price=Decimal('5'), fees=0, direction='Buy'),
+        _add_price('USSTOCK', datetime(2026, 1, 30), 5),
+        _add_price('USDAUD=X.FX', datetime(2026, 1, 29), 1.50),
+        _add_price('USDAUD=X.FX', datetime(2026, 1, 30), 1.60),
+    ])
+    db.session.commit()
+
+    assert user._portfolio_value_on(datetime(2026, 1, 31)) == pytest.approx(80.0)
