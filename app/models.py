@@ -948,6 +948,18 @@ class User(UserMixin, db.Model):
             return pd.DataFrame()
 
         prices = prices.reset_index()
+        invalid_rows = prices.loc[prices['Close'].isna(), ['Ticker', 'Date']]
+        for _, invalid_row in invalid_rows.iterrows():
+            deleted = StockPrices.query.filter(
+                StockPrices.ticker == invalid_row['Ticker'],
+                StockPrices.date == invalid_row['Date'],
+                StockPrices.close.is_(None),
+            ).delete(synchronize_session=False)
+            if deleted:
+                logger.warning(
+                    'Removed %s existing invalid price row(s) for %s on %s',
+                    deleted, invalid_row['Ticker'], invalid_row['Date'],
+                )
         prices = _drop_invalid_price_rows(prices)
         if prices.empty:
             logger.info('Price service returned no valid close prices; skipping update')
