@@ -125,7 +125,7 @@ def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.Dat
         from utils.custom_funds import get_custom_fund_data
         df = get_custom_fund_data(isin, start_date, end_date)
         if isinstance(df, pd.DataFrame) and not df.empty:
-            return df
+            return _normalise_fund_data(df)
     except ImportError:
         logger.info('Private custom_funds provider is not installed; no fund provider available for %s', isin)
     except Exception as e:
@@ -148,6 +148,17 @@ def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.Dat
         logger.debug(f'yfinance fallback failed for {isin}.AX: {e}')
 
     return None
+
+
+def _normalise_fund_data(df: pd.DataFrame) -> pd.DataFrame:
+    """Normalise provider fund data to a Date-indexed DataFrame."""
+    result = df.copy()
+    if 'Date' in result.columns:
+        result['Date'] = pd.to_datetime(result['Date'], errors='coerce').dt.tz_localize(None)
+        result = result.dropna(subset=['Date']).set_index('Date')
+    elif result.index.name != 'Date':
+        result.index.name = 'Date'
+    return result
 
 
 def get_yf_price(ticker: str, start_date: datetime, end_date: datetime) -> pd.DataFrame:
