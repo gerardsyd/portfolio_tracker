@@ -7,7 +7,6 @@ import pandas as pd
 import yfinance as yf
 
 from utils.crypto import get_crypto_price
-from utils.custom_funds import get_custom_fund_data
 
 logger = logging.getLogger('pt_logger.Stock')
 
@@ -120,13 +119,17 @@ def get_fund_data(isin: str, start_date: datetime, end_date: datetime) -> pd.Dat
     Returns:
         DataFrame with Close/Splits/Dividends columns, or None
     """
-    # Try custom_funds (yfinance-backed)
+    # The provider is intentionally private and gitignored. Keep the public
+    # repository runnable when that local module is not present.
     try:
+        from utils.custom_funds import get_custom_fund_data
         df = get_custom_fund_data(isin, start_date, end_date)
         if isinstance(df, pd.DataFrame) and not df.empty:
             return df
+    except ImportError:
+        logger.info('Private custom_funds provider is not installed; no fund provider available for %s', isin)
     except Exception as e:
-        logger.warning(f'custom_funds lookup failed for {isin}: {e}')
+        logger.warning('custom_funds lookup failed for %s: %s', isin, e)
 
     # Fallback: try yfinance with a plain `.AX` suffix
     try:
