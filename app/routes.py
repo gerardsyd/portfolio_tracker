@@ -300,7 +300,11 @@ def nav_pf():
             if end_date_input:
                 end_date = get_date(end_date_input, None)
             logger.info(f'Force recalculating NAV history (end_date={end_date})')
-            updated_count = current_user.update_nav_in_trades(force_full_recalc=True, end_date=end_date)
+            updated_count = current_user.update_nav_in_trades(
+                force_full_recalc=True,
+                end_date=end_date,
+                perform_price_refresh=True
+            )
             flash(f'Recalculated NAV for {updated_count} trades', 'info')
             return render_template('nav.jinja2', title=title, nav_chart=None, nav_total_chart=None, nav_totals=None)
 
