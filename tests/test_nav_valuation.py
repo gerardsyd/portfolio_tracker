@@ -2,8 +2,22 @@ from datetime import datetime
 from decimal import Decimal
 
 import pytest
+import pandas as pd
 
-from app.models import PortfolioMonthlyNav, StockPrices, Stocks, Trades, User
+from app.models import PortfolioMonthlyNav, StockPrices, Stocks, Trades, User, _drop_invalid_price_rows
+
+
+def test_price_update_drops_missing_close_rows():
+    prices = pd.DataFrame({
+        'Ticker': ['RF1.AX', 'RF1.AX'],
+        'Date': [datetime(2026, 9, 10), datetime(2026, 9, 11)],
+        'Close': [3.34, None],
+    })
+
+    result = _drop_invalid_price_rows(prices)
+
+    assert len(result) == 1
+    assert result.iloc[0]['Close'] == pytest.approx(3.34)
 
 
 def _add_price(ticker, price_date, close):

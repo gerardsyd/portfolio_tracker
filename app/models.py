@@ -23,6 +23,17 @@ INFO_COLUMNS = ['Ticker', 'Name', 'Quantity', 'LastPrice', '%LastChange', '$Last
                 'AvgCost', 'Cost', '%CostPF', 'Dividends', 'RlGain', 'UnRlGain', 'TotalGain', 'Date', 'Type']
 
 
+def _drop_invalid_price_rows(prices: pd.DataFrame) -> pd.DataFrame:
+    """Drop provider rows without a usable close price before SQL writes."""
+    if 'Close' not in prices.columns:
+        return prices
+    invalid = prices['Close'].isna()
+    if invalid.any():
+        logger.warning('Skipping %s price rows with missing close values', int(invalid.sum()))
+        return prices.loc[~invalid].copy()
+    return prices
+
+
 class User(UserMixin, db.Model):
     id = db.Column(db.Integer, primary_key=True)
     username = db.Column(db.String(64), index=True, unique=True)
@@ -937,6 +948,10 @@ class User(UserMixin, db.Model):
             return pd.DataFrame()
 
         prices = prices.reset_index()
+        prices = _drop_invalid_price_rows(prices)
+        if prices.empty:
+            logger.info('Price service returned no valid close prices; skipping update')
+            return pd.DataFrame()
         prices = prices.replace(np.nan, None)
 
         # iterate through rows in prices to update SQL database with updated prices where already existing or to append new data
