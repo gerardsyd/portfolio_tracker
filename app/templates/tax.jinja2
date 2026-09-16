@@ -48,7 +48,7 @@
 {% block app_content %}
 <div class="container">
     <h2>Tax report for {{ current_user.username }}</h2>
-    <form action="/tax" method="post">
+    <form action="/tax" method="post" data-loading-form>
         <div class="form-row align-items-center">
             <div class="col">
                 <label>Start Date: </label><input type="date" name="start_date" id="start_date" class="form-control">
@@ -57,10 +57,10 @@
                 <label>End Date: </label><input type="date" name="end_date" id="end_date" class="form-control">
             </div>
             <div class="col-sm" align="center">
-                <input type="submit" name="action" value="Submit" class="btn btn-primary">
+                <input type="submit" name="action" value="Submit" class="btn btn-primary" data-loading-label="Generating…">
             </div>
             <div class="col-sm" align="center">
-                <input type="submit" name="action" value="Export to File" class="btn btn-primary">
+                <input type="submit" name="action" value="Export to File" class="btn btn-primary" data-loading-label="Exporting…">
             </div>
             <input type="hidden" name="time_offset" id="time_offset" value="0">
         </div>

@@ -40,9 +40,9 @@
     <p class="text-muted small mb-4">Last price update: {{ last_updated }}</p>
     {% endif %}
     <label> Portfolio actions:</label>
-    <form action="/pfactions" method="post">
+    <form action="/pfactions" method="post" data-loading-form>
         <div class="row align-items-center">
-            <div class="col-sm"><input type="submit" name="action" value="Export to CSV" class="btn btn-primary"></div>
+            <div class="col-sm"><input type="submit" name="action" value="Export to CSV" class="btn btn-primary" data-loading-label="Exporting…"></div>
         </div>
         <p></p>
         <div class="row align-items-center">
@@ -62,7 +62,7 @@
                 Currency: {{ current_user.default_currency }}
             </div>
             <div class="col-sm">
-                <input type="submit" name="action" value="Refresh" class="btn btn-primary">
+                <input type="submit" name="action" value="Refresh" class="btn btn-primary" data-loading-label="Refreshing…">
             </div>
         </div>
     </form>

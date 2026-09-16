@@ -371,7 +371,7 @@ class User(UserMixin, db.Model):
         logger.debug('Getting IRR for each position')
         start = datetime.now()
         irr_df = self.calc_IRR(hist_df[['Date', 'Ticker', 'CF', 'CumQuan']].copy(
-        ), curr_df[['Date', 'Ticker', 'Close']].copy())
+        ), curr_df[['Date', 'Ticker', 'Close', 'Fx']].copy())
         logger.info(f'IRR data took {(datetime.now()-start)} to run')
 
         # clean-up dataframe
@@ -632,21 +632,25 @@ class User(UserMixin, db.Model):
 
         # get current position for each ticker (i.e. current number of shares held)
         curr_pos = hist_pos.groupby('Ticker').last().reset_index()
-        curr_p = curr_p.set_index('Ticker').astype({'Close': 'float'})
+        curr_p = curr_p.set_index('Ticker').copy()
+        curr_p['Close'] = pd.to_numeric(curr_p['Close'], errors='coerce')
+        if 'Fx' in curr_p.columns:
+            curr_p['Fx'] = pd.to_numeric(curr_p['Fx'], errors='coerce').fillna(1.0)
+        else:
+            curr_p['Fx'] = 1.0
 
-        # add current value in new column in curr_pos dataframe
+        # add current value in new column in curr_pos dataframe, in the portfolio currency
         for _, row in curr_pos.iterrows():
             ticker = row['Ticker']
             try:
-                curr_p.at[ticker, 'CF'] = row['CumQuan'] * \
-                    curr_p.loc[ticker, 'Close']
+                curr_p.at[ticker, 'CF'] = row['CumQuan'] * curr_p.loc[ticker, 'Close'] * curr_p.loc[ticker, 'Fx']
             except KeyError:
                 logger.debug(f'IRR Calculation: No stock data for {ticker}')
                 curr_p.at[ticker, 'CF'] = np.nan
 
         # clean up dataframes and reset indices before merge
         hist_pos.drop(['CumQuan'], axis=1, inplace=True)
-        curr_p.drop(['Close'], axis=1, inplace=True)
+        curr_p.drop(['Close', 'Fx'], axis=1, inplace=True)
         curr_p.reset_index(inplace=True)
 
         # merge curr_p into hist_pos as transactions
@@ -2394,7 +2398,7 @@ class User(UserMixin, db.Model):
                 last_change=False
             )
             irr_df = self.calc_IRR(hist_pos[['Date', 'Ticker', 'CF', 'CumQuan']].copy(),
-                                   curr_p[['Date', 'Ticker', 'Close']].copy())
+                                   curr_p[['Date', 'Ticker', 'Close', 'Fx']].copy())
             irr_pct = float(irr_df[irr_df['Ticker'] == 'Total']['IRR'].iloc[0]) * 100 if not irr_df.empty else 0.0
         except Exception as e:
             logger.warning(f'Could not calculate IRR: {e}')

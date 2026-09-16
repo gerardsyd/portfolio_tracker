@@ -70,7 +70,7 @@
     <h2>NAV Tracking for {{ current_user.username }}</h2>
 
     <!-- Form for date range and actions -->
-    <form action="/portfolio/nav" method="post" class="mb-4">
+    <form action="/portfolio/nav" method="post" class="mb-4" data-loading-form>
         <div class="form-row align-items-end">
             <div class="col-md-2 col-sm-4 mb-2">
                 <label class="form-label text-left" for="start_date">Start Date</label>
@@ -81,8 +81,8 @@
                 <input type="date" name="end_date" id="end_date" class="form-control">
             </div>
             <div class="col-md-4 col-sm-8 mb-2 d-flex">
-                <input type="submit" name="action" value="View NAV" class="btn btn-primary mr-2 flex-fill">
-                <button type="submit" name="action" value="force_recalc" class="btn btn-warning flex-fill">Force NAV Recalculation</button>
+                <input type="submit" name="action" value="View NAV" class="btn btn-primary mr-2 flex-fill" data-loading-label="Generating…">
+                <button type="submit" name="action" value="force_recalc" class="btn btn-warning flex-fill" data-loading-label="Recalculating…">Force NAV Recalculation</button>
             </div>
         </div>
         <input type="hidden" name="time_offset" id="time_offset" value="0">

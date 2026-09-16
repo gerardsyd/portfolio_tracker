@@ -25,6 +25,27 @@
         body {
             padding-top: 60px
         }
+
+        .loading-spinner {
+            display: inline-block;
+            width: 1rem;
+            height: 1rem;
+            margin-right: 0.35rem;
+            vertical-align: -0.125em;
+            border: 0.15em solid currentColor;
+            border-right-color: transparent;
+            border-radius: 50%;
+            animation: loading-spin 0.75s linear infinite;
+        }
+
+        .loading-submit {
+            pointer-events: none;
+            opacity: 0.75;
+        }
+
+        @keyframes loading-spin {
+            to { transform: rotate(360deg); }
+        }
     </style>
     <link rel="shortcut icon" href="{{ url_for('static', filename='favicon.ico') }}">
     {% block app_styles %}{% endblock app_styles %}
@@ -128,6 +149,38 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/moment.js/2.29.1/moment-with-locales.min.js"
         integrity="sha512-LGXaggshOkD/at6PFNcp2V2unf9LzFq6LE+sChH7ceMTDP0g2kn6Vxwgg7wkPP7AAtX+lmPqPdxB47A0Nz0cMQ=="
         crossorigin="anonymous"></script>
+    <script>
+        document.addEventListener('DOMContentLoaded', function () {
+            document.querySelectorAll('form[data-loading-form]').forEach(function (form) {
+                form.addEventListener('submit', function (event) {
+                    var submitter = event.submitter;
+                    if (!submitter || form.dataset.loading === 'true') {
+                        if (form.dataset.loading === 'true') {
+                            event.preventDefault();
+                        }
+                        return;
+                    }
+                    form.dataset.loading = 'true';
+
+                    form.querySelectorAll('button[type="submit"], input[type="submit"]').forEach(function (control) {
+                        if (control !== submitter) {
+                            control.disabled = true;
+                        }
+                    });
+
+                    var label = submitter.getAttribute('data-loading-label') || 'Working…';
+                    submitter.classList.add('loading-submit');
+                    submitter.setAttribute('aria-disabled', 'true');
+                    submitter.setAttribute('aria-busy', 'true');
+                    if (submitter.tagName === 'INPUT') {
+                        submitter.value = label;
+                    } else {
+                        submitter.innerHTML = '<span class="loading-spinner" aria-hidden="true"></span>' + label;
+                    }
+                });
+            });
+        });
+    </script>
     {% block app_scripts %}{% endblock app_scripts %}
     {% endblock scripts %}
     {% endblock body %}

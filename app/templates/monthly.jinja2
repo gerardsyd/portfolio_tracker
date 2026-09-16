@@ -40,7 +40,7 @@
 {% block app_content %}
 <div class="container">
     <h2>Monthly Portfolio Summary for {{ current_user.username }}</h2>
-    <form action="/portfolio/monthly" method="post">
+    <form action="/portfolio/monthly" method="post" data-loading-form>
         <div class="form-row align-items-end">
             <div class="col-md-2 col-sm-4 mb-2">
                 <label class="form-label" for="start_date">Start Date</label>
@@ -70,8 +70,8 @@
                 </select>
             </div>
             <div class="col-md-3 col-sm-4 mb-2 d-flex">
-                <input type="submit" name="action" value="Submit" class="btn btn-primary mr-2 flex-fill">
-                <input type="submit" name="action" value="Export to File" class="btn btn-secondary flex-fill">
+                <input type="submit" name="action" value="Submit" class="btn btn-primary mr-2 flex-fill" data-loading-label="Generating…">
+                <input type="submit" name="action" value="Export to File" class="btn btn-secondary flex-fill" data-loading-label="Exporting…">
             </div>
         </div>
         <input type="hidden" name="time_offset" id="time_offset" value="0">
