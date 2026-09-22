@@ -103,7 +103,7 @@ def update_pf():
 
     df['Date'] = df['Date'].dt.strftime('%d-%m-%y')
     df_html = web_utils.pandas_table_styler(
-        df, neg_cols=['%LastChange', '$LastChange', 'IRR', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio')
+        df, neg_cols=['%LastChange', '$LastChange', 'IRR', '%UnRlGain', 'RlGain', 'UnRlGain', 'TotalGain'], left_align_cols=['Ticker', 'Name'], ticker_links=True, uuid='portfolio', base_currency=current_user.default_currency)
     df_html = web_utils.add_footer(df_html)
     as_at_date = str(as_at_date.date())
     df_html = web_utils.update_links(df_html, currency, as_at_date)
@@ -117,7 +117,8 @@ def update_pf():
         last_updated_display = most_common_date.strftime('%d %b %Y')
     else:
         last_updated_display = 'Unknown'
-    return render_template('home.jinja2', tables=df_html, title="Overview", last_updated=last_updated_display)
+    return render_template('home.jinja2', tables=df_html, title="Overview", last_updated=last_updated_display,
+                           currency_legend=web_utils.portfolio_currency_legend(current_user.default_currency))
 
 
 @app.route('/load', methods=['GET', 'POST'])

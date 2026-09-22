@@ -1,4 +1,4 @@
-from typing import List
+from typing import List, Optional
 import re
 
 from flask import request
@@ -19,6 +19,32 @@ PF_FORMAT_DICT = {'Quantity': "{:,.2f}", '%LastChange': '{:,.2%}', 'IRR': '{:,.2
 pio.templates.default = "plotly_white"
 
 logger = logging.getLogger('pt_logger.web_utils')
+
+
+def portfolio_display_labels(base_currency: str):
+    """Return user-facing portfolio headings for the configured base currency."""
+    labels = {
+        'LastPrice': 'Last Price†',
+        '$LastChange': 'Daily Change*',
+        'CurrVal': 'Current Value*',
+        'AvgCost': 'Average Cost*',
+        'Cost': 'Cost Base*',
+        'RlGain': 'Realised Gain*',
+        'UnRlGain': 'Unrealised Gain*',
+        'TotalGain': 'Total Gain*',
+        'Dividends': 'Dividends*',
+        '%UnRlGain': 'Unrealised Gain (%)',
+    }
+    return labels
+
+
+def portfolio_currency_legend(base_currency: str):
+    """Return the portfolio table currency legend for a user's base currency."""
+    currency = str(base_currency).upper()
+    return (
+        f"* Converted to portfolio base currency ({currency}). "
+        "† Displayed in the security's local trading currency."
+    )
 
 
 def add_footer(html: str):
@@ -119,21 +145,30 @@ def update_links(html: str, currency: str, date: str):
     return html
 
 
-def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List, ticker_links: bool, uuid: str, rows_to_bold: List = [-1], hide_index: bool = True):
-    df_html = (df.style
-               .format(PF_FORMAT_DICT, na_rep="--")
-               .map(neg_red, subset=neg_cols)
+def pandas_table_styler(df: pd.DataFrame, neg_cols: List, left_align_cols: List, ticker_links: bool, uuid: str, rows_to_bold: List = [-1], hide_index: bool = True, base_currency: Optional[str] = None):
+    labels = portfolio_display_labels(base_currency) if base_currency else {}
+    display_df = df.rename(columns={k: v for k, v in labels.items() if not k.startswith('_')})
+    display_formats = {
+        labels.get(column, column): format_string
+        for column, format_string in PF_FORMAT_DICT.items()
+        if labels.get(column, column) in display_df.columns
+    }
+    display_neg_cols = [labels.get(column, column) for column in neg_cols]
+    display_left_align_cols = [labels.get(column, column) for column in left_align_cols]
+    df_html = (display_df.style
+               .format(display_formats, na_rep="--")
+               .map(neg_red, subset=display_neg_cols)
                #    .map(format_with_parentheses, subset=neg_cols)
-               .set_properties(**{'text-align': 'left'}, subset=left_align_cols)
+               .set_properties(**{'text-align': 'left'}, subset=display_left_align_cols)
                .set_uuid(uuid)
-               .set_properties(**{'font-weight': 'bold'}, subset=(df.index[rows_to_bold], df.columns))
+               .set_properties(**{'font-weight': 'bold'}, subset=(display_df.index[rows_to_bold], display_df.columns))
                .set_table_attributes('class="hover stripe row-border order-column display compact"')
                )
     if hide_index:
         df_html = df_html.hide(axis="index")
     if ticker_links:
         df_html.format(
-            stock_link, subset=pd.IndexSlice[df.index[:-1], 'Ticker'])
+            stock_link, subset=pd.IndexSlice[display_df.index[:-1], 'Ticker'])
     return df_html.to_html()
 
 
